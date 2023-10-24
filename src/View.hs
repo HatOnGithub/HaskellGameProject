@@ -4,5 +4,7 @@ import Model
 import GHC.Data.Bitmap
 
 view :: World -> IO Picture
-view = undefined
+view = return . viewPure
 
+viewPure :: World -> Picture
+viewPure world = undefined

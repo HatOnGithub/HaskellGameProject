@@ -6,6 +6,11 @@ import GHC.Unit.Module.Graph (isTemplateHaskellOrQQNonBoot)
 initialState :: world
 initialState = undefined
 
+thresholdObjectsPerQuadrant :: Int
+thresholdObjectsPerQuadrant = 6
+
+data QuadTree a = Node BoundingBox [a] (QuadTree a) (QuadTree a) (QuadTree a) (QuadTree a) | EmptyLeaf
+
 data Time = Secs Float | NA
 
 data GameState = GoMode | PrivateUse
@@ -37,6 +42,12 @@ data PickupObject = PickupObject {
 
 }
 
+class CollisionObject a where
+  getBoundingBox :: a -> BoundingBox
+
+
+
+
 data Player = Player {
       position      :: Point
     , velocity      :: Vector
@@ -46,6 +57,10 @@ data Player = Player {
     , boundingBox   :: BoundingBox
 }
 
+instance CollisionObject Player where
+  getBoundingBox = boundingBox
+
+
 data Enemy = Enemy {
       eposition     :: Point
     , evelocity     :: Vector
@@ -54,12 +69,18 @@ data Enemy = Enemy {
     , eboundingBox  :: BoundingBox
 }
 
+instance CollisionObject Enemy where
+  getBoundingBox = eboundingBox
+
 data Block = Block {
       bposition       :: Point
     , item            :: BlockContents
     , texture         :: [(String, Animation)]
     , bboundingBox    :: BoundingBox
 }
+
+instance CollisionObject Block where
+  getBoundingBox = bboundingBox
 
 data World = World {
       player        :: Player 
@@ -69,4 +90,5 @@ data World = World {
     , timeLeft      :: Time 
     , camera        :: Camera
     , gameState     :: GameState
+    , worldSize     :: Point
     }
