@@ -14,7 +14,7 @@ type Point = (Float, Float)
 
 type Vector = (Float, Float)
 
-type Animation = [Bitmap]
+data Animation = Animation { frames :: [Bitmap], timer :: Float, index :: Int, loops :: Bool }
 
 type BoundingBox = ((Float, Float), (Float, Float))
 
