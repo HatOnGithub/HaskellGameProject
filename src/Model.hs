@@ -46,8 +46,6 @@ class CollisionObject a where
   getBoundingBox :: a -> BoundingBox
 
 
-
-
 data Player = Player {
       position      :: Point
     , velocity      :: Vector

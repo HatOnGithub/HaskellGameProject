@@ -18,7 +18,7 @@ buildQuadTree World{ player = p, enemies = es, blocks = bs } = undefined
 
 
 
-getPossibleCollisionPartners :: CollisionObject a => a -> QuadTree a -> [a]
+getPossibleCollisionPartners :: (CollisionObject a, Eq a) => a -> QuadTree a -> [a]
 getPossibleCollisionPartners _ EmptyLeaf = []
 getPossibleCollisionPartners obj n@(Node bb objs tl tr bl br )  | obj `elem` objs   = collapse n
                                                                 | otherwise         = concat [
