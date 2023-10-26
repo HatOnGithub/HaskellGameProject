@@ -18,4 +18,5 @@ executable gloss-counter
                      , Model
                      , View
                      , QuadTree
+                     , ImageLoader
   default-language:    Haskell2010
