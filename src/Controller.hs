@@ -1,12 +1,13 @@
+{-# LANGUAGE NamedFieldPuns #-}
 module Controller where
 
 import Graphics.Gloss
 import Graphics.Gloss.Interface.IO.Game
 import Model
-import QuadTree (buildQuadTree, collapse)
+import QuadTree
 
 step :: Float -> World -> IO World
-step dt = return . physics dt
+step dt = return . processCollision . processVectors dt . updateTimes dt
 
 input :: Event -> World -> IO World
 input = undefined
@@ -14,25 +15,34 @@ input = undefined
 collision :: World -> World
 collision = undefined
 
-physics ::  Float -> World -> World
-physics dt w    = w {
-        player  = playerPhysics dt p enemyTree blockTree, 
-        enemies = enemyPhysics  dt p enemyTree blockTree, 
-        blocks  = blockPhysics  dt p enemyTree blockTree 
+updateTimes :: Float -> World -> World
+updateTimes dt w@( World { timeLeft }) = w{
+    timeLeft = tickTime dt timeLeft
+}
+
+tickTime :: Float -> Time -> Time
+tickTime _ NA = NA
+tickTime dt (Secs n) = Secs (n - dt)
+    
+
+processVectors ::  Float -> World -> World
+processVectors dt w@( World { player, enemies, blocks }) = w {
+          player  = applyGravityAndVectors dt player
+        , enemies = map (applyGravityAndVectors dt) enemies
+        , blocks  = map (applyGravityAndVectors dt) blocks
         }
+
+applyGravityAndVectors :: CollisionObject a => Float ->  a ->  a
+applyGravityAndVectors dt obj = 
+    setVelocity 
+    (setPosition obj (getPosition obj + ((getVelocity obj + gravity )* toPoint (dt * movementModifier)))) 
+    (getVelocity obj + gravity * toPoint dt)
+
+processCollision ::  World -> World
+processCollision w@( World { player, enemies, blocks, points }) = w
     where 
-        p         = player w
-        enemyTree = buildQuadTree (enemies w) (worldSize w)
-        blockTree = buildQuadTree (blocks  w) (worldSize w)
+        enemyTree = buildQuadTree enemies (worldSize w)
+        blockTree = buildQuadTree blocks  (worldSize w)
 
-playerPhysics :: Float -> Player -> QuadTree Enemy -> QuadTree Block -> Player
-playerPhysics dt p es bs = applyGravity dt p
-
-enemyPhysics :: Float -> Player -> QuadTree Enemy -> QuadTree Block -> [Enemy]
-enemyPhysics dt p es bs = map (applyGravity dt) (collapse es)
-
-blockPhysics :: Float -> Player -> QuadTree Enemy -> QuadTree Block -> [Block]
-blockPhysics dt p es bs = collapse bs
-
-applyGravity :: CollisionObject a => Float ->  a ->  a
-applyGravity dt obj = obj
+playerCollision :: World -> World
+playerCollision = undefined
