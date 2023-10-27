@@ -7,7 +7,6 @@ import qualified Data.Map as Map
 import GHC.Data.Bitmap (Bitmap)
 import GHC.Unit.Module.Graph (isTemplateHaskellOrQQNonBoot)
 import Graphics.Gloss (Picture, Point, Vector)
-import ImageLoader
 
 initialState :: World
 initialState = World{ player = testPlayer (0,0), enemies = [], blocks = [], timeLeft = NA, points = 0, camera = (0,0), gameState = Pause, worldSize = (0,0)}
