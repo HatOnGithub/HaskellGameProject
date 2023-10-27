@@ -19,7 +19,7 @@ main :: IO ()
 main = do
     anims <- loadAnimationsInAll animLocations
     playIO (InWindow "MarioFromAliExpress" (1024, 840) (0,0))
-              black
+              blue
               60
               initialState
               (view anims)

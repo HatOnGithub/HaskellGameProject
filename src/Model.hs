@@ -16,7 +16,7 @@ movementModifier :: Float
 movementModifier = 1
 
 gravity :: (Float, Float)
-gravity = (0, 60)
+gravity = (0, -60)
 
 instance Num (Float, Float) where
   (+) (x1,y1) (x2,y2) = (x1 + x2, y1 + y2)
