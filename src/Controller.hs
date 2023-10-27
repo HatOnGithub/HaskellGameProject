@@ -11,17 +11,18 @@ step dt = return
 --step dt = return . processCollision . processVectors dt . updateTimes dt
 
 input :: Event -> World -> IO World
-input (EventKey (Char 'e') Down _ _) w = do
-    print "made goomba"
-    return w{enemies = goomba (5,5) : enemies w}
 input (EventKey key Down _ _) w = do
-    print "something else"
     let enemies' = enemies w
     case key of
+        (Char 'e') -> return w{enemies = goomba (5,5) : enemies w}
         (Char 'w') -> return w{enemies = map (\enemy -> enemy{eposition = eposition enemy + ( 0, 5)}) enemies'}
         (Char 'a') -> return w{enemies = map (\enemy -> enemy{eposition = eposition enemy + (-5, 0)}) enemies'}
         (Char 's') -> return w{enemies = map (\enemy -> enemy{eposition = eposition enemy + ( 0,-5)}) enemies'}
         (Char 'd') -> return w{enemies = map (\enemy -> enemy{eposition = eposition enemy + ( 5, 0)}) enemies'}
+        (SpecialKey KeyUp)      -> return w{camera = camera w + ( 0, 1)}
+        (SpecialKey KeyLeft)    -> return w{camera = camera w + (-1, 0)}
+        (SpecialKey KeyDown)    -> return w{camera = camera w + ( 0,-1)}
+        (SpecialKey KeyRight)   -> return w{camera = camera w + ( 1, 0)}
         _ -> return w
 input _ w = return w
 

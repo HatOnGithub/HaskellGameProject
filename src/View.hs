@@ -28,6 +28,6 @@ viewPure map w@(World {
     timeLeft, camera, gameState, worldSize}) = getFrame player : (Prelude.map getFrame enemies ++ Prelude.map getFrame blocks)
     where getFrame :: CollisionObject a => a -> Picture
           getFrame obj = getFrame' obj (getCurrentAnimation obj)
-          getFrame' obj (Just a) = Scale worldScale worldScale (uncurry Translate (getPosition obj) (frames a !! index a))
-          getFrame' obj Nothing  = Scale worldScale worldScale (uncurry Translate (getPosition obj) missingTexture)
+          getFrame' obj (Just a) = Scale worldScale worldScale (uncurry Translate (getPosition obj - camera) (frames a !! index a))
+          getFrame' obj Nothing  = Scale worldScale worldScale (uncurry Translate (getPosition obj - camera) missingTexture)
           
