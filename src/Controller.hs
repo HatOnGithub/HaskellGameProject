@@ -7,10 +7,23 @@ import Model
 import QuadTree
 
 step :: Float -> World -> IO World
-step dt = return . processCollision . processVectors dt . updateTimes dt
+step dt = return 
+--step dt = return . processCollision . processVectors dt . updateTimes dt
 
 input :: Event -> World -> IO World
-input = undefined
+input (EventKey (Char 'e') Down _ _) w = do
+    print "made goomba"
+    return w{enemies = goomba (5,5) : enemies w}
+input (EventKey key Down _ _) w = do
+    print "something else"
+    let enemies' = enemies w
+    case key of
+        (Char 'w') -> return w{enemies = map (\enemy -> enemy{eposition = eposition enemy + ( 0, 5)}) enemies'}
+        (Char 'a') -> return w{enemies = map (\enemy -> enemy{eposition = eposition enemy + (-5, 0)}) enemies'}
+        (Char 's') -> return w{enemies = map (\enemy -> enemy{eposition = eposition enemy + ( 0,-5)}) enemies'}
+        (Char 'd') -> return w{enemies = map (\enemy -> enemy{eposition = eposition enemy + ( 5, 0)}) enemies'}
+        _ -> return w
+input _ w = return w
 
 collision :: World -> World
 collision = undefined
@@ -45,4 +58,4 @@ processCollision w@( World { player, enemies, blocks, points }) = w
         blockTree = buildQuadTree blocks  (worldSize w)
 
 playerCollision :: World -> World
-playerCollision = undefined
+playerCollision w = w

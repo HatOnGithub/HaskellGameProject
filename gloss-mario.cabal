@@ -13,7 +13,8 @@ executable gloss-counter
                        gloss,
                        random,
                        ghc,
-                       containers
+                       containers,
+                       directory
   hs-source-dirs:      src
   other-modules:       Controller
                      , Model

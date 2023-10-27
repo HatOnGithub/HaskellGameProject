@@ -2,7 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 module Model where
 import Data.Char (GeneralCategory(PrivateUse))
-import Data.Map (Map)
+import Data.Map (Map, (!?))
 import qualified Data.Map as Map
 import GHC.Data.Bitmap (Bitmap)
 import GHC.Unit.Module.Graph (isTemplateHaskellOrQQNonBoot)
@@ -31,6 +31,7 @@ toPoint :: Num a => a -> (a,a)
 toPoint n = (n,n)
 
 
+
 data QuadTree a = Node BoundingBox [a] (QuadTree a) (QuadTree a) (QuadTree a) (QuadTree a) | EmptyLeaf
   deriving (Show, Eq)
 
@@ -47,28 +48,28 @@ type BoundingBox = (Point, Point)
 type Camera = Point
 
 data MovementState = Standing | Walking | Running | Jumping | Crouching | GroundedFiring | MidAirFiring
-  deriving (Eq)
+  deriving (Eq, Show)
 
 isGrounded :: MovementState -> Bool
 isGrounded state = state /= Jumping && state /= MidAirFiring
 
-data PowerUpState = Small | Large | Fire | Starman
-  deriving (Eq)
+data PowerUpState = Small | Large | Fire | Starman Float
+  deriving (Eq, Show)
 
 data AIPattern = HopChase | Throw | Patrol | RunAway | Bowser
-  deriving (Eq)
+  deriving (Eq, Show)
 
 data BlockContents = Object PickupObject | Coin | Empty
+  deriving (Show, Eq)
 
 data PickupType = Mushroom | FireFlower | Star
-  deriving (Eq)
+  deriving (Eq, Show)
 
 data PickupObject = PickupObject {
       poPosition      :: Point
     , poVelocity      :: Vector
     , pickupType      :: PickupType
-
-}
+} deriving (Show, Eq)
 
 class CollisionObject a where
   getBoundingBox :: a -> BoundingBox
@@ -77,6 +78,7 @@ class CollisionObject a where
   setBoundingBox :: a -> BoundingBox -> a
   setVelocity :: a -> Vector -> a
   setPosition :: a -> Point -> a
+  getCurrentAnimation :: a -> Maybe Animation
 
 
 data Player = Player {
@@ -98,6 +100,8 @@ instance CollisionObject Player where
   setBoundingBox obj@(Player {boundingBox}) newBB = obj {boundingBox = newBB}
   setVelocity obj@(Player {velocity}) newVelocity = obj {velocity = newVelocity}
   setPosition obj@(Player {position}) newPos = obj {position = newPos}
+  getCurrentAnimation obj@(Player {movementState, animations, powerUpState}) =  animations !? (show movementState ++ show powerUpState)
+
 instance Show Player where
   show p = "Player At " ++ Prelude.show (position p) ++ " with Velocity " ++ Prelude.show (velocity p)
 
@@ -110,8 +114,8 @@ data Enemy = Enemy {
     , eboundingBox  :: BoundingBox
 }
 
-goomba :: Point -> Map String Animation -> Enemy
-goomba pos anims = Enemy {eposition = pos, evelocity = (0,0), eanimations = anims, emovementState = Standing, aIPattern = Patrol, eboundingBox = (pos, (1,1)) }
+goomba :: Point -> Enemy
+goomba pos = Enemy {eposition = pos, evelocity = (0,0), eanimations = Map.empty, emovementState = Standing, aIPattern = Patrol, eboundingBox = (pos, (1,1)) }
 
 instance CollisionObject Enemy where
   getBoundingBox = eboundingBox
@@ -120,6 +124,7 @@ instance CollisionObject Enemy where
   setBoundingBox obj@(Enemy {eboundingBox}) newBB = obj {eboundingBox = newBB}
   setVelocity obj@(Enemy {evelocity}) newVelocity = obj {evelocity = newVelocity}
   setPosition obj@(Enemy {eposition}) newPos = obj {eposition = newPos}
+  getCurrentAnimation obj@(Enemy {emovementState, eanimations}) =  eanimations !? show emovementState
 
 instance Show Enemy where
   show e = "Enemy"
@@ -130,7 +135,7 @@ instance Eq Enemy where
 data Block = Block {
       bposition       :: Point
     , item            :: BlockContents
-    , texture         :: Map String Animation
+    , textures         :: Map String Animation
     , bboundingBox    :: BoundingBox
 }
 
@@ -141,6 +146,7 @@ instance CollisionObject Block where
   setBoundingBox obj@(Block {bboundingBox}) newBB = obj {bboundingBox = newBB}
   setVelocity obj _ = obj
   setPosition obj@(Block {bposition}) newPos = obj {bposition = newPos}
+  getCurrentAnimation obj@(Block {item, textures}) =  textures !? show item
 
 instance Eq Block where
   (==) b1 b2 = bposition b1 == bposition b2
