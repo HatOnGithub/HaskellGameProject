@@ -5,12 +5,10 @@ import Graphics.Gloss
 import Graphics.Gloss.Interface.IO.Game
 import Model
 import QuadTree
-import GHC.Plugins (infinity)
 import Data.List
 
 step :: Float -> World -> IO World
 step dt w | gameState w == GoMode = do
-            print (player w)
             (return . processCollision  .   processGravity dt . processVectors dt) w
           | otherwise             = return w
 --step dt = return . updateTimes dt . processCollision . processVectors dt 
@@ -18,13 +16,12 @@ step dt w | gameState w == GoMode = do
 input :: Event -> World -> IO World
 input (EventKey key Down _ _) w@( World { player, enemies }) = do
     let enemies' = enemies
-    print (isGrounded player)
     case key of
         (Char 'e') -> return w{enemies = goomba (5,5) : enemies}
 
         (Char 'w') -> tryJump w
         (Char 'a') -> return w{player = player {velocity = velocity player + (-10,  0)}}
-        (Char 's') -> return w{player = player {velocity = velocity player + (  0,-10)}}
+        (Char 's') -> if grounded player then return w{player = player {movementState = Crouching}} else return w
         (Char 'd') -> return w{player = player {velocity = velocity player + ( 10,  0)}}
 
         (SpecialKey KeyUp)      -> return w{camera = camera w + ( 0, 10)}
@@ -36,14 +33,14 @@ input (EventKey key Up _ _) w@( World { player }) = do
     let enemies' = enemies w
     case key of
         (Char 'a') -> return w{player = player {velocity = velocity player - (-10,  0)}}
-        (Char 's') -> return w{player = player {velocity = velocity player - (  0,-10)}}
+        (Char 's') -> if movementState player == Crouching then return w{player = player {movementState = Standing}} else return w
         (Char 'd') -> return w{player = player {velocity = velocity player - ( 10,  0)}}
         _ -> return w
 -- unmapped key? unknown input? ignore lmao    
 input _ w = return w
 
 
-tryJump w@( World { player }) | isGrounded player   = return w{player = player {velocity = velocity player + (0, 30), grounded = False}}
+tryJump w@( World { player }) | isGrounded player   = return w{player = player {velocity = velocity player + (0, 26), grounded = False}}
                               | otherwise           = return w
 
 collision :: World -> World
@@ -93,7 +90,7 @@ processCollision w@( World { player, enemies, blocks, pickupObjects, points }) =
             pTree = buildQuadTree pickupObjects (worldSize w)
 
 playerCollision :: QuadTree Block -> QuadTree Enemy -> QuadTree PickupObject -> World -> World
-playerCollision bTree eTree pTree w@( World { player, enemies, blocks, points }) = w {player = groundCollision player bTree}
+playerCollision bTree eTree pTree w@( World { player, enemies, blocks, points }) = w {player = worldCollision player bTree}
 
 enemyCollision :: World -> World
 enemyCollision w@( World { player, enemies, blocks, points }) = w
@@ -101,18 +98,21 @@ enemyCollision w@( World { player, enemies, blocks, points }) = w
         eTree = buildQuadTree enemies (worldSize w)
         bTree = buildQuadTree blocks  (worldSize w)
 
-groundCollision :: CollisionObject a => a -> QuadTree Block -> a
-groundCollision obj bTree = do
+worldCollision :: CollisionObject a => a -> QuadTree Block -> a
+worldCollision obj bTree = do
         let possiblePartners    = getCollisionPartners obj bTree
-        let collidableBlocks    =  filter (obj `collidesWith`) possiblePartners
+        let collidableBlocks    = filter (obj `collidesWith`) possiblePartners
         let sortedOnDistance    = sortBy (\ a b -> abs (bposition a - getPosition obj) `compare` abs (bposition b - getPosition obj)) collidableBlocks
         let areUnderneath (x,y) = abs x > abs y && y < 0
+        let areAbove (x,y)      = abs x > abs y && y > 0
         let isGrounded          = any (areUnderneath . (obj `overlap`)) collidableBlocks
-        groundState (correctPosition obj sortedOnDistance) isGrounded
+        let hitCeiling          = any (areAbove . (obj `overlap`)) collidableBlocks
+        if hitCeiling then groundState (correctPosition (setVelocity obj (getVelocity obj * (1,0)))sortedOnDistance) isGrounded
+        else groundState (correctPosition obj sortedOnDistance) isGrounded
 
 correctPosition ::  CollisionObject a => a -> [Block] -> a
 correctPosition = foldl (\ obj x -> setPosition obj (getPosition obj - smallestChange (obj `overlap` x)))
     where smallestChange (x,y)  | abs x <  abs y = verySmallOffset * (x , 0)
                                 | abs x >= abs y = verySmallOffset * (0 , y)
-          verySmallOffset       = (1.001,1.001)
+          verySmallOffset       = (1.01,1.01)
 

@@ -12,9 +12,9 @@ getCollisionPartners :: (CollisionObject a,  CollisionObject b) => a -> QuadTree
 getCollisionPartners _ EmptyLeaf = []
 getCollisionPartners obj n@(Node bb objs tl tr bl br )
         -- seems like we reached non subdevided objects
-    | not (null objs)   = collapse n 
+    | not (null objs)   = collapse n
         -- hmm, we can go deeper, ain't nothing here
-    | obj `fitsIn` bb   = concatMap (getCollisionPartners obj) [ tl, tr, bl, br] 
+    | obj `fitsIn` bb   = concatMap (getCollisionPartners obj) [ tl, tr, bl, br]
         -- uh, where is everyone?
     | otherwise         = []
 
@@ -32,7 +32,7 @@ insert x t@(Node bb xs tl tr bl br)
     | not (x `fitsIn` bb) = t
 
     -- there is room and there are no subnodes!, come in!
-    | length xs < thresholdObjectsPerQuadrant && not (hasSubNodes t) 
+    | length xs < thresholdObjectsPerQuadrant && not (hasSubNodes t)
         = Node bb (x : xs) tl tr bl br
 
     -- no more room! we don't have subnodes! subdivide and insert into subnodes!
@@ -40,8 +40,11 @@ insert x t@(Node bb xs tl tr bl br)
         = insertAll (x:xs) (Node bb [] ntl ntr nbl nbr)
 
     -- welp, try the subnodes?
+    | any (\q -> x `fitsIn` getBB q) [ tl, tr, br, bl]
+        = insertIntoQuadrant x t
+
     | otherwise
-        = insertIntoQuadrant x t 
+        = Node bb (x : xs) tl tr bl br
 
     where quadrants@[ntl, ntr, nbl, nbr] = map newNode (toQuadrants bb)
 
@@ -75,7 +78,7 @@ getBB :: CollisionObject a => QuadTree a -> BoundingBox
 getBB (Node bb _ _ _ _ _) = bb
 
 collidesWith :: (CollisionObject a, CollisionObject b) => a -> b -> Bool
-collidesWith objA objB = 
+collidesWith objA objB =
     xA < xB + wB &&
     xA + wA > xB &&
     yA < yB + hB &&

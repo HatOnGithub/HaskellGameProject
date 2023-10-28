@@ -7,18 +7,28 @@ import qualified Data.Map as Map
 import GHC.Data.Bitmap (Bitmap)
 import GHC.Unit.Module.Graph (isTemplateHaskellOrQQNonBoot)
 import Graphics.Gloss (Picture, Point, Vector)
+import Graphics.Gloss.Data.Picture
+import Graphics.Gloss.Data.Color
 
 initialState :: World
 initialState = World{ 
   player = testPlayer (10,2.8), 
   enemies = [], 
-  blocks = [newBlock (10,2), newBlock (11,2),newBlock (9,2),newBlock (12,2),newBlock (12,3)], 
+  blocks = [newBlock (7,2), newBlock (8,2), newBlock (9,2), newBlock (10,2), newBlock (11,2),newBlock (9,2),newBlock (12,2),newBlock (12,3)
+           ,newBlock (13,2),newBlock (14,2),newBlock (15,2),newBlock (12,8)], 
   pickupObjects = [],
   timeLeft = NA, 
   points = 0, 
   camera = (10,10), 
   gameState = GoMode, 
   worldSize = (100,100)}
+
+missingTexture :: Picture
+missingTexture = Pictures [ 
+    Color magenta   (Polygon [(0,0), (0,0.5), (0.5,0.5), (0.5,0)]),
+    Color black     (Polygon [(0.5,0), (0.5,0.5), (1,0.5), (1,0)]),
+    Color magenta   (Polygon [(0.5,0.5), (0.5,1), (1,1), (1,0.5)]),
+    Color black     (Polygon [(0,0.5), (0,1), (0.5,1), (0.5,0.5)])]
 
 movementModifier :: Float
 movementModifier = 1
@@ -50,6 +60,9 @@ data GameState = GoMode | Pause
   deriving (Eq)
 
 data Animation = Animation { frames :: [Picture], frameLength :: Float, timer :: Float, index :: Int, loops :: Bool }
+
+instance Show Animation where
+  show a = show (length (frames a)) ++ " Frames"
 
 type BoundingBox = (Point, Point)
 
@@ -107,10 +120,10 @@ testPlayer :: Point -> Player
 testPlayer pos = Player {
   position = pos, 
   velocity = (0,0), 
-  animations = Map.empty, 
+  animations = Map.fromList [("StandingSmall", Animation {frames = [Scale 1 2 missingTexture], frameLength = 1, timer = 0, index = 0, loops = True})], 
   movementState = Standing, 
   powerUpState = Small, 
-  boundingBoxS = (1,1), 
+  boundingBoxS = (1,2), 
   starMan = False,
   grounded = False,
   alive = True
