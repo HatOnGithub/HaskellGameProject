@@ -73,3 +73,23 @@ hasSubNodes (Node _ _ tl _ _ _) = tl /= EmptyLeaf
 
 getBB :: CollisionObject a => QuadTree a -> BoundingBox
 getBB (Node bb _ _ _ _ _) = bb
+
+collidesWith :: (CollisionObject a, CollisionObject b) => a -> b -> Bool
+collidesWith objA objB = 
+    xA < xB + wB &&
+    xA + wA > xB &&
+    yA < yB + hB &&
+    yA + hA > yB
+    where   ((xA, yA), (wA, hA)) = getBoundingBox objA
+            ((xB, yB), (wB, hB)) = getBoundingBox objB
+
+-- positive x = right; negative x = left
+-- positive y = bottom; negative y = top
+overlap :: (CollisionObject a, CollisionObject b) => a -> b -> (Float, Float)
+overlap objA objB = (xOverlap , yOverlap)
+  where ((xA, yA), (wA, hA)) = getBoundingBox objA
+        ((xB, yB), (wB, hB)) = getBoundingBox objB
+        xOverlap    | xA <= xB  = (xA + wA) - xB
+                    | otherwise = xA - (xB + wB)
+        yOverlap    | yA <= yB  = (yA + hA) - yB
+                    | otherwise = yA - (yB + hB)

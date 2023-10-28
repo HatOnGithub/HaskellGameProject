@@ -14,7 +14,8 @@ executable gloss-mario
                        random,
                        ghc,
                        containers,
-                       directory
+                       directory,
+                       mtl
   hs-source-dirs:      src
   other-modules:       Controller
                      , Model

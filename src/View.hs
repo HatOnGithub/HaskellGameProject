@@ -8,14 +8,14 @@ import GHC.Driver.Session (positionIndependent)
 
 
 worldScale :: Float
-worldScale = 4
+worldScale = 4 * 8
 
 missingTexture :: Picture
 missingTexture = Pictures [ 
-    Color magenta   (Polygon [(0,0), (0,4), (4,4), (4,0)]),
-    Color black     (Polygon [(4,0), (4,4), (8,4), (8,0)]),
-    Color magenta   (Polygon [(4,4), (4,8), (8,8), (8,4)]),
-    Color black     (Polygon [(0,4), (0,8), (4,8), (4,4)])]
+    Color magenta   (Polygon [(0,0), (0,0.5), (0.5,0.5), (0.5,0)]),
+    Color black     (Polygon [(0.5,0), (0.5,0.5), (1,0.5), (1,0)]),
+    Color magenta   (Polygon [(0.5,0.5), (0.5,1), (1,1), (1,0.5)]),
+    Color black     (Polygon [(0,0.5), (0,1), (0.5,1), (0.5,0.5)])]
 
 view :: Map String (Map String Animation) -> World -> IO Picture
 view map w = do 

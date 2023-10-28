@@ -20,7 +20,7 @@ main = do
     anims <- loadAnimationsInAll animLocations
     playIO (InWindow "MarioFromAliExpress" (1024, 840) (0,0))
               blue
-              60
+              120
               initialState
               (view anims)
               input
