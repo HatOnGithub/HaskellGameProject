@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveFoldable #-}
 module QuadTree where
 
 import Model
@@ -5,17 +6,22 @@ import Graphics.Gloss
 
 -- QuadTree related stuff
 
+
+data QuadTree a = Node BoundingBox [a] (QuadTree a) (QuadTree a) (QuadTree a) (QuadTree a) | EmptyLeaf
+  deriving (Foldable, Show, Eq)
+
+
 thresholdObjectsPerQuadrant :: Int
 thresholdObjectsPerQuadrant = 6
 
 getCollisionPartners :: (CollisionObject a,  CollisionObject b) => a -> QuadTree b -> [b]
 getCollisionPartners _ EmptyLeaf = []
 getCollisionPartners obj n@(Node bb objs tl tr bl br )
-        -- seems like we reached non subdevided objects
+        -- seems like we reached civilisation
     | not (null objs)   = collapse n
-        -- hmm, we can go deeper, ain't nothing here
+        -- hmm, we can go deeper, no one is here
     | obj `fitsIn` bb   = concatMap (getCollisionPartners obj) [ tl, tr, bl, br]
-        -- uh, where is everyone?
+        -- huh, there is no one here
     | otherwise         = []
 
 buildQuadTree :: (CollisionObject a, Eq a) => [a] -> Point -> QuadTree a

@@ -21,7 +21,7 @@ initialState = World{
   points = 0, 
   camera = (10,10), 
   gameState = GoMode, 
-  worldSize = (100,100)}
+  worldSize = (20,20)}
 
 missingTexture :: Picture
 missingTexture = Pictures [ 
@@ -49,9 +49,6 @@ toPoint :: Num a => a -> (a,a)
 toPoint n = (n,n)
 
 
-
-data QuadTree a = Node BoundingBox [a] (QuadTree a) (QuadTree a) (QuadTree a) (QuadTree a) | EmptyLeaf
-  deriving (Show, Eq)
 
 data Time = Secs Float | NA
   deriving (Eq)

@@ -9,7 +9,7 @@ import Data.List
 
 step :: Float -> World -> IO World
 step dt w | gameState w == GoMode = do
-            (return . processCollision  .   processGravity dt . processVectors dt) w
+            (return . processCollision . processGravity dt . processVectors dt) w
           | otherwise             = return w
 --step dt = return . updateTimes dt . processCollision . processVectors dt 
 
@@ -90,7 +90,12 @@ processCollision w@( World { player, enemies, blocks, pickupObjects, points }) =
             pTree = buildQuadTree pickupObjects (worldSize w)
 
 playerCollision :: QuadTree Block -> QuadTree Enemy -> QuadTree PickupObject -> World -> World
-playerCollision bTree eTree pTree w@( World { player, enemies, blocks, points }) = w {player = worldCollision player bTree}
+playerCollision bTree eTree pTree w@( World { player, enemies, blocks, points }) = w {
+        player = np
+    ,   camera = (cx, max 0 cy)
+    }
+    where np        = worldCollision player bTree
+          (cx,cy)   = position np + boundingBoxS np * toPoint 0.5
 
 enemyCollision :: World -> World
 enemyCollision w@( World { player, enemies, blocks, points }) = w
@@ -107,7 +112,7 @@ worldCollision obj bTree = do
         let areAbove (x,y)      = abs x > abs y && y > 0
         let isGrounded          = any (areUnderneath . (obj `overlap`)) collidableBlocks
         let hitCeiling          = any (areAbove . (obj `overlap`)) collidableBlocks
-        if hitCeiling then groundState (correctPosition (setVelocity obj (getVelocity obj * (1,0)))sortedOnDistance) isGrounded
+        if hitCeiling then groundState (correctPosition (setVelocity obj (getVelocity obj * (1,0))) sortedOnDistance) isGrounded
         else groundState (correctPosition obj sortedOnDistance) isGrounded
 
 correctPosition ::  CollisionObject a => a -> [Block] -> a
