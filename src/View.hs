@@ -6,7 +6,6 @@ import GHC.Data.Bitmap
 import Data.Map hiding (map)
 import GHC.Driver.Session (positionIndependent)
 import QuadTree
-import GHC.Stg.Syntax (AltType(PolyAlt))
 
 
 worldScale :: Float
@@ -29,7 +28,8 @@ viewPure map w@(World {
 viewUI :: Map String (Map String Animation) -> World -> [Picture]
 viewUI map w@(World {
     player, enemies, blocks, pickupObjects, points,
-    timeLeft, camera, gameState, worldSize}) = [Blank]
+    timeLeft, camera, gameState, worldSize}) = 
+        if isAlive player then [Blank] else [Translate (-120) 5 (Scale 0.5 0.5 (Text "Skill Issue"))]
 
 viewWorld :: Map String (Map String Animation) -> World -> [Picture]
 viewWorld map w@(World {
@@ -42,20 +42,32 @@ viewWorld map w@(World {
         [viewQT w]
 
 getFrame :: CollisionObject a => Camera -> a -> Picture
-getFrame c obj = getFrame' obj c (getCurrentAnimation obj)
+getFrame c obj = if isAlive obj then getFrame' obj c (getCurrentAnimation obj) else Blank
 
 getFrame' :: CollisionObject a => a -> Camera -> Maybe Animation -> Picture
+-- found animation!
 getFrame' obj c (Just a) = Scale worldScale worldScale (uncurry Translate (getPosition obj - c) (frames a !! index a))
+-- uh, where is it?
 getFrame' obj c Nothing  = Scale worldScale worldScale (uncurry Translate (getPosition obj - c) missingTexture)
 
 viewQT :: World -> Picture
 viewQT w@(World {
     player, enemies, blocks, pickupObjects, points,
-    timeLeft, camera, gameState, worldSize}) = Pictures [toPictures red camera bTree]
-    where bTree = buildQuadTree blocks worldSize
+    timeLeft, camera, gameState, worldSize}) = Pictures [
+        quadTreeToPictures (0.5 `withAlpha` red  ) camera bTree, 
+        quadTreeToPictures (0.5 `withAlpha` blue ) camera eTree,
+        quadTreeToPictures (0.5 `withAlpha` green) camera poTree]
+    where 
+        eTree  = buildQuadTree enemies       worldSize
+        bTree  = buildQuadTree blocks        worldSize
+        poTree = buildQuadTree pickupObjects worldSize  
 
-toPictures :: CollisionObject a => Color -> Point -> QuadTree a -> Picture
-toPictures _ _ EmptyLeaf = Blank
-toPictures color cam (Node (pos,(w,h)) _ tl tr bl br) = Pictures [
-    Color color (Scale worldScale worldScale (uncurry Translate (pos - cam) (Polygon [(0,0), ( w, 0), (w, h), (0, h)]))),
-    toPictures (dim color) cam tl, toPictures (dim color) cam tr, toPictures (dim color) cam bl, toPictures (dim color) cam br]
+quadTreeToPictures :: CollisionObject a => Color -> Point -> QuadTree a -> Picture
+quadTreeToPictures _ _ EmptyLeaf = Blank
+quadTreeToPictures color cam (Node (pos,(w,h)) _ tl tr bl br) = Pictures [
+    Color color (Scale worldScale worldScale (uncurry Translate (pos - cam) (Line [(0,0), ( w, 0), (w, h), (0, h)]))),
+    quadTreeToPictures (dim color) cam tl, 
+    quadTreeToPictures (dim color) cam tr, 
+    quadTreeToPictures (dim color) cam bl, 
+    quadTreeToPictures (dim color) cam br]
+

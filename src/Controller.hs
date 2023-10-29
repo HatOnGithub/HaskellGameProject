@@ -9,38 +9,43 @@ import Data.List
 
 step :: Float -> World -> IO World
 step dt w | gameState w == GoMode = do
-            (return . processCollision . processGravity dt . processVectors dt) w
+            (return . processCollision . processGravity dt . processVectors dt . updateTimes dt) w
           | otherwise             = return w
 --step dt = return . updateTimes dt . processCollision . processVectors dt 
 
 input :: Event -> World -> IO World
 input (EventKey key Down _ _) w@( World { player, enemies }) = do
     let enemies' = enemies
-    case key of
+    if isAlive player then 
+        case key of
         (Char 'e') -> return w{enemies = goomba (5,5) : enemies}
 
         (Char 'w') -> tryJump w
-        (Char 'a') -> return w{player = player {velocity = velocity player + (-10,  0)}}
-        (Char 's') -> if grounded player then return w{player = player {movementState = Crouching}} else return w
-        (Char 'd') -> return w{player = player {velocity = velocity player + ( 10,  0)}}
-
-        (SpecialKey KeyUp)      -> return w{camera = camera w + ( 0, 10)}
-        (SpecialKey KeyLeft)    -> return w{camera = camera w + (-10, 0)}
-        (SpecialKey KeyDown)    -> return w{camera = camera w + ( 0,-10)}
-        (SpecialKey KeyRight)   -> return w{camera = camera w + ( 10, 0)}
+        (Char 'a') -> if movementState player == Crouching then return w{player = player {velocity = velocity player + (-5,  0)}}
+            else return w{player = player {velocity = velocity player + (-10,  0)}}
+        (Char 's') -> if grounded player then return w{player = player {velocity = (0, snd (velocity player)), movementState = Crouching}} 
+                        else return w
+        (Char 'd') -> if movementState player == Crouching then return w{player = player {velocity = velocity player + (5,  0)}}
+            else return w{player = player {velocity = velocity player + (10,  0)}}
         _ -> return w
+    else return w
+
 input (EventKey key Up _ _) w@( World { player }) = do
     let enemies' = enemies w
-    case key of
-        (Char 'a') -> return w{player = player {velocity = velocity player - (-10,  0)}}
-        (Char 's') -> if movementState player == Crouching then return w{player = player {movementState = Standing}} else return w
-        (Char 'd') -> return w{player = player {velocity = velocity player - ( 10,  0)}}
+    if isAlive player then
+        case key of
+        (Char 'a') ->   if movementState player == Crouching then return w{player = player {velocity = velocity player + (5,  0)}}
+            else return w{player = player {velocity = velocity player + (10,  0)}}
+        (Char 's') ->   if movementState player == Crouching then return w{player = player {movementState = Standing}} else return w
+        (Char 'd') ->   if movementState player == Crouching then return w{player = player {velocity = velocity player + (-5,  0)}}
+            else return w{player = player {velocity = velocity player + (-10,  0)}}
         _ -> return w
+    else return w
 -- unmapped key? unknown input? ignore lmao    
 input _ w = return w
 
 
-tryJump w@( World { player }) | isGrounded player   = return w{player = player {velocity = velocity player + (0, 26), grounded = False}}
+tryJump w@( World { player }) | isGrounded player   = return w{player = player {velocity = velocity player + (0, 28), grounded = False, movementState = Jumping}}
                               | otherwise           = return w
 
 collision :: World -> World
@@ -74,25 +79,30 @@ processGravity dt w@( World { player, enemies, blocks }) = w {
         }
 
 applyVectors :: CollisionObject a => Float ->  a ->  a
-applyVectors dt obj = setPosition obj (getPosition obj + (getVelocity obj * toPoint dt))
+applyVectors dt obj = 
+    if isAlive obj then 
+        setPosition obj (getPosition obj + (getVelocity obj * toPoint dt))
+    else 
+        obj
 
 
 applyGravity :: CollisionObject a => Float ->  a ->  a
-applyGravity dt obj | not (isGrounded obj)       = setVelocity obj (getVelocity obj + (gravity * toPoint dt))
+applyGravity dt obj | not (isAlive obj)          = setVelocity obj (0,0)
+                    | not (isGrounded obj)       = setVelocity obj (getVelocity obj + (gravity * toPoint dt))
                     | snd (getVelocity obj) <= 0 = setVelocity obj (fst (getVelocity obj) , -0.1)
                     | otherwise = obj
 
 
 processCollision ::  World -> World
 processCollision w@( World { player, enemies, blocks, pickupObjects, points }) = playerCollision bTree eTree pTree w
-    where   bTree = buildQuadTree blocks  (worldSize w)
-            eTree = buildQuadTree enemies (worldSize w)
+    where   bTree = buildQuadTree blocks        (worldSize w)
+            eTree = buildQuadTree enemies       (worldSize w)
             pTree = buildQuadTree pickupObjects (worldSize w)
 
 playerCollision :: QuadTree Block -> QuadTree Enemy -> QuadTree PickupObject -> World -> World
-playerCollision bTree eTree pTree w@( World { player, enemies, blocks, points }) = w {
-        player = np
-    ,   camera = (cx, max 0 cy)
+playerCollision bTree eTree pTree w@( World { player, enemies, blocks, points, worldSize }) = w {
+        player = if snd (getPosition player) >= -5 then np else kill player
+    ,   camera = (cx, clamp cy 13.1 (snd worldSize))
     }
     where np        = worldCollision player bTree
           (cx,cy)   = position np + boundingBoxS np * toPoint 0.5
@@ -119,5 +129,5 @@ correctPosition ::  CollisionObject a => a -> [Block] -> a
 correctPosition = foldl (\ obj x -> setPosition obj (getPosition obj - smallestChange (obj `overlap` x)))
     where smallestChange (x,y)  | abs x <  abs y = verySmallOffset * (x , 0)
                                 | abs x >= abs y = verySmallOffset * (0 , y)
-          verySmallOffset       = (1.01,1.01)
+          verySmallOffset       = (1.001,1.001)
 
