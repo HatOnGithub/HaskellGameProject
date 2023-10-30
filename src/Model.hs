@@ -1,9 +1,9 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE InstanceSigs #-}
+
 module Model where
 import Data.Char (GeneralCategory(PrivateUse))
-import Data.Map (Map, (!?))
+import Data.Map (Map, (!?), size)
 import qualified Data.Map as Map
 import GHC.Data.Bitmap (Bitmap)
 import GHC.Unit.Module.Graph (isTemplateHaskellOrQQNonBoot)
@@ -13,13 +13,14 @@ import Graphics.Gloss.Data.Color
 import GHC.CmmToAsm.Reg.Liveness (eraseDeltasLive)
 import Data.Fixed (mod')
 import GHC.Float (roundTo)
+import Foreign.C (eNAMETOOLONG)
 
 initialState :: World
 initialState = World{
-  player = testPlayer (10,2.8),
+  player = mario (10,2.8),
   enemies = [],
-  blocks = [newBlock (7,2), newBlock (8,2), newBlock (9,2), newBlock (10,2), newBlock (11,2),newBlock (9,2),newBlock (12,2),newBlock (12,3)
-           ,newBlock (13,2),newBlock (14,2),newBlock (15,2),newBlock (12,8)],
+  blocks = [brick (7,2), brick (8,2), brick (9,2), brick (10,2), brick (11,2),brick (9,2),brick (12,2),brick (12,3)
+           ,brick (13,2),brick (14,2),brick (15,2),brick (12,8)],
   pickupObjects = [],
   timeLeft = NA,
   points = 0,
@@ -39,6 +40,17 @@ movementModifier = 1
 
 gravity :: (Float, Float)
 gravity = (0, -60)
+
+pixelsPerUnit :: Int
+pixelsPerUnit = 16
+
+mvmntVelocity :: Float
+mvmntVelocity = 10
+
+jumpVelocity :: Float
+jumpVelocity = 28
+
+
 
 instance Num (Float, Float) where
   (+) (x1,y1) (x2,y2) = (x1 + x2, y1 + y2)
@@ -90,19 +102,26 @@ data PickupType = Mushroom | FireFlower | Star
 
 
 class CollisionObject a where
-  getBoundingBox      :: a -> BoundingBox
-  getVelocity         :: a -> Vector
-  getPosition         :: a -> Point
-  setBoundingBoxSize  :: a -> Point -> a
-  setVelocity         :: a -> Vector -> a
-  setPosition         :: a -> Point -> a
+  getName             :: a -> String
+  getBB               :: a -> BoundingBox
+  getVel              :: a -> Vector
+  getPos              :: a -> Point
+  setBBSize           :: a -> Point -> a
+  setVel              :: a -> Vector -> a
+  setPos              :: a -> Point -> a
+  hasNoAnimations     :: a -> Bool
+  setAnimations       :: a -> Map String Animation -> a
   getCurrentAnimation :: a -> Maybe Animation
   modCurrentAnimation :: a -> Float -> a
+  getInternalState    :: a -> MovementState
   setInternalState    :: a -> MovementState -> a
   groundState         :: a -> Bool -> a
   isGrounded          :: a -> Bool
   isAlive             :: a -> Bool
   kill                :: a -> a
+  facingLeft          :: a -> Bool
+  faceLeft            :: a -> Bool -> a
+
 
 
 data Player = Player {
@@ -115,49 +134,43 @@ data Player = Player {
     , starMan       :: Bool
     , grounded      :: Bool
     , alive         :: Bool
+    , isFacingLeft  :: Bool
 }
 
-testPlayer :: Point -> Player
-testPlayer pos = Player {
+mario :: Point -> Player
+mario pos = Player {
   position = pos,
   velocity = (0,0),
-  animations = Map.fromList [("RunningSmall", Animation { frames = [ missingTexture,
-                                                                     Translate 1 0  (Scale (-1) 1 missingTexture)]
-                                                         , frameLength = 0.2, timer = 0, index = 0, loops = True}),
-                              ("CrouchingSmall", Animation { frames = [ Scale 1 0.5 missingTexture]
-                                                         , frameLength = 0.2, timer = 0, index = 0, loops = True})],
+  animations = Map.empty,
   movementState = Standing,
   powerUpState = Small,
   boundingBoxS = (1,1),
   starMan = False,
   grounded = False,
-  alive = True
+  alive = True,
+  isFacingLeft = False
   }
 
 instance CollisionObject Player where
-  getBoundingBox p = (position p, boundingBoxS p)
-  getVelocity = velocity
-  getPosition = position
-  setBoundingBoxSize p@(Player {boundingBoxS}) newBBSize = p {boundingBoxS = newBBSize}
-  setVelocity p@(Player {velocity}) newVelocity = p {velocity = newVelocity}
-  setPosition p@(Player {position}) newPos = p {position = newPos}
+  -- trivial stuff
+  getName _ = "Mario"; getBB p = (position p, boundingBoxS p); getVel = velocity; getPos = position; isAlive = alive; kill p = p {alive = False}; facingLeft = isFacingLeft; faceLeft p b = p {isFacingLeft = b}
+  setInternalState p newState= p {movementState = newState}; groundState p b = p {grounded = b}; isGrounded = grounded; getInternalState = movementState
+  -- bit more complicated stuff
+  setBBSize p@(Player {boundingBoxS}) newBBSize = p {boundingBoxS = newBBSize}
+  setVel p@(Player {velocity}) newVelocity = p {velocity = newVelocity}
+  setPos p@(Player {position}) newPos = p {position = newPos}
+  hasNoAnimations p = size (animations p) == 0
+  setAnimations p m = p{animations = m}
   getCurrentAnimation p@(Player {movementState, animations, powerUpState}) =  animations !? (show movementState ++ show powerUpState)
   modCurrentAnimation p@(Player {movementState, animations, powerUpState}) dt =
     p { animations = Map.adjustWithKey (updateAnim dt) (show movementState ++ show powerUpState) animations }
-  setInternalState p newState= p {movementState = newState}
-  groundState p b = p {grounded = b}
-  isGrounded = grounded
-  isAlive = alive
-  kill p = p {alive = False}
-
-
-
 
 instance Show Player where
   show p = show (concatMap show (animations p) )
 
 data Enemy = Enemy {
-      eposition     :: Point
+      ename         :: String
+    , eposition     :: Point
     , evelocity     :: Vector
     , eanimations   :: Map String Animation
     , emovementState:: MovementState
@@ -165,10 +178,12 @@ data Enemy = Enemy {
     , eboundingBoxS :: Point
     , egrounded     :: Bool
     , ealive        :: Bool
+    , efacingLeft   :: Bool
 }
 
 goomba :: Point -> Enemy
 goomba pos = Enemy {
+  ename     = "Goomba",
   eposition = pos,
   evelocity = (0,0),
   eanimations = Map.empty,
@@ -176,23 +191,24 @@ goomba pos = Enemy {
   aIPattern = Patrol,
   eboundingBoxS = (1,1),
   egrounded = False,
-  ealive = True }
+  ealive = True,
+  efacingLeft = False }
 
 instance CollisionObject Enemy where
-  getBoundingBox e = (eposition e, eboundingBoxS e)
-  getVelocity = evelocity
-  getPosition = eposition
-  setBoundingBoxSize obj@(Enemy {eboundingBoxS}) newBBSize = obj {eboundingBoxS = newBBSize}
-  setVelocity obj@(Enemy {evelocity}) newVelocity = obj {evelocity = newVelocity}
-  setPosition obj@(Enemy {eposition}) newPos = obj {eposition = newPos}
+  -- trivial stuff
+  getName = ename ; getBB e = (eposition e, eboundingBoxS e);getVel = evelocity;getPos = eposition ; isAlive = ealive ; getInternalState = emovementState
+  isGrounded = egrounded; groundState e b = e{egrounded = b}; setInternalState e newState= e {emovementState = newState};  kill e = e {ealive = False}
+  facingLeft = efacingLeft; faceLeft p b = p{efacingLeft = b}
+  -- bit more complicated stuff
+  setBBSize obj@(Enemy {eboundingBoxS}) newBBSize = obj {eboundingBoxS = newBBSize}
+  setVel obj@(Enemy {evelocity}) newVelocity = obj {evelocity = newVelocity}
+  setPos obj@(Enemy {eposition}) newPos = obj {eposition = newPos}
+  hasNoAnimations e = size (eanimations e) == 0
+  setAnimations e m = e{eanimations = m}
   getCurrentAnimation obj@(Enemy {emovementState, eanimations}) =  eanimations !? show emovementState
   modCurrentAnimation obj@(Enemy {emovementState, eanimations}) dt =
     obj { eanimations = Map.adjustWithKey (updateAnim dt) (show emovementState ) eanimations }
-  setInternalState e newState= e {emovementState = newState}
-  groundState e b = e{egrounded = b}
-  isGrounded = egrounded
-  isAlive = ealive
-  kill e = e {ealive = False}
+
 
 instance Show Enemy where
   show e = "Enemy"
@@ -201,15 +217,17 @@ instance Eq Enemy where
   (==) e1 e2 = (eposition e1 == eposition e1) && (evelocity e1 == evelocity e2) && (aIPattern e1 == aIPattern e2)
 
 data Block = Block {
-      bposition       :: Point
+      bname           :: String
+    , bposition       :: Point
     , item            :: BlockContents
     , textures        :: Map String Animation
     , bboundingBoxS   :: Point
     , exists          :: Bool
 }
 
-newBlock :: Point -> Block
-newBlock pos = Block{
+brick :: Point -> Block
+brick pos = Block{
+  bname = "Brick",
   bposition = pos,
   item = Empty,
   textures = Map.empty,
@@ -222,20 +240,18 @@ popBlock b | show (item b) == "Full" = b{item = Empty}
            | otherwise = b
 
 instance CollisionObject Block where
-  getBoundingBox b = (bposition b, bboundingBoxS b)
-  getVelocity _ = (0,0)
-  getPosition   = bposition
-  setBoundingBoxSize obj@(Block {bboundingBoxS}) newBBSize = obj {bboundingBoxS = newBBSize}
-  setVelocity obj _ = obj
-  setPosition obj@(Block {bposition}) newPos = obj {bposition = newPos}
+  -- trivial stuff
+  getName = bname; getBB b = (bposition b, bboundingBoxS b); getVel _ = (0,0) ; getPos = bposition; setVel obj _ = obj; getInternalState _ = Standing
+  setInternalState b _ = b; groundState b _ = b ;  isGrounded _ = True ; isAlive = exists ; kill b = b { exists = False }
+  facingLeft _ = False; faceLeft b _ = b
+  -- bit more complicated stuff
+  setBBSize obj@(Block {bboundingBoxS}) newBBSize = obj {bboundingBoxS = newBBSize}
+  setPos obj@(Block {bposition}) newPos = obj {bposition = newPos}
+  hasNoAnimations b = size (textures b) == 0
+  setAnimations b m = b{textures = m}
   getCurrentAnimation obj@(Block {item, textures}) =  textures !? show item
   modCurrentAnimation obj@(Block {item, textures}) dt =
     obj { textures = Map.adjustWithKey (updateAnim dt) (show item) textures }
-  setInternalState b _ = b
-  groundState b _ = b
-  isGrounded _ = True
-  isAlive = exists
-  kill b = b { exists = False }
 
 
 instance Eq Block where
@@ -245,7 +261,8 @@ instance Show Block where
   show b = "Block at" ++ show (bposition b)
 
 data PickupObject = PickupObject {
-      poposition      :: Point
+      poname          :: String
+    , poposition      :: Point
     , povelocity      :: Vector
     , pickupType      :: PickupType
     , poanimations    :: Map String Animation
@@ -255,21 +272,20 @@ data PickupObject = PickupObject {
 }
 
 instance CollisionObject PickupObject where
-  getBoundingBox :: PickupObject -> BoundingBox
-  getBoundingBox po = (poposition po, poboundingBoxS po)
-  getVelocity = povelocity
-  getPosition = poposition
-  setBoundingBoxSize obj@(PickupObject {poboundingBoxS}) newBBSize = obj {poboundingBoxS = newBBSize}
-  setVelocity obj@(PickupObject {povelocity}) newVelocity = obj {povelocity = newVelocity}
-  setPosition obj@(PickupObject {poposition}) newPos = obj {poposition = newPos}
+  -- trivial stuff
+  getName = poname; getBB po = (poposition po, poboundingBoxS po); getVel = povelocity;getPos = poposition; getInternalState _ = Walking
+  isGrounded = pogrounded ; setInternalState po _ = po ;  isAlive = poalive ;  groundState po b = po{pogrounded = b} ; kill po = po {poalive = False}
+  facingLeft _ = False; faceLeft po _ = po
+  -- bit more complicated stuff
+  setBBSize obj@(PickupObject {poboundingBoxS}) newBBSize = obj {poboundingBoxS = newBBSize}
+  setVel obj@(PickupObject {povelocity}) newVelocity = obj {povelocity = newVelocity}
+  setPos obj@(PickupObject {poposition}) newPos = obj {poposition = newPos}
+  hasNoAnimations po = size (poanimations po) == 0
+  setAnimations po m = po{poanimations = m}
   getCurrentAnimation obj@(PickupObject {pickupType, poanimations}) =  poanimations !? show pickupType
   modCurrentAnimation obj@(PickupObject {pickupType, poanimations}) dt =
     obj { poanimations = Map.adjustWithKey (updateAnim dt) (show pickupType ) poanimations }
-  setInternalState po _ = po
-  groundState po b = po{pogrounded = b}
-  isGrounded = pogrounded
-  isAlive = poalive
-  kill po = po {poalive = False}
+
 
 instance Eq PickupObject where
   (==) a b = poposition a == poposition b && povelocity a == povelocity b && pickupType a == pickupType b

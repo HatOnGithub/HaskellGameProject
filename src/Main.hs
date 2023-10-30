@@ -3,22 +3,23 @@ module Main where
 import Controller
 import Model
 import View
-import System.Directory
-
+import System.Directory.Recursive
 import Graphics.Gloss.Interface.IO.Game
-import Data.Map hiding (drop, map)
-import Graphics.Gloss (loadBMP)
+import Data.Map hiding (drop, map, splitAt)
+import Graphics.Gloss
 import qualified Data.Map as Map hiding (drop, map)
 import Data.List (elemIndex)
+import Data.List.Split
 import Data.Maybe
+import GHC.Cmm (Width)
 
 animLocations :: [(String, String)]
-animLocations = []
+animLocations = [("Mario", "src\\Textures\\Mario")]
 
 main :: IO ()
 main = do
-    anims <- loadAnimationsInAll animLocations
-    playIO (InWindow "MarioFromAliExpress" (1024, 840) (0,0))
+    anims <- animLocationToMap animLocations
+    playIO (InWindow "Pringlio" (1024, 840) (0,0))
               blue
               120
               initialState
@@ -26,23 +27,62 @@ main = do
               input
               step
 
-loadAnimationsInAll :: [(String, String)] -> IO (Map String (Map String Animation))
-loadAnimationsInAll list = do
-    raw <- mapM loadAnimations list
-    return (Map.fromList raw)
 
-loadAnimations :: (String,String) -> IO (String, Map String Animation)
-loadAnimations (name , location) = do
-    contentLocations <- getDirectoryContents location
-    loneAnims <- mapM toAnimation contentLocations
-    let contents = Map.fromList (giveNames contentLocations loneAnims)
-    return (name,  contents)
 
-toAnimation :: String -> IO Animation
-toAnimation location = undefined
+animLocationToMap :: [(String, String)] -> IO (Map String (Map String Animation))
+animLocationToMap [] = return Map.empty
+animLocationToMap ((name, folderpath):xs) = do
+    filePaths <- getFilesRecursive folderpath
+    animsInFolder <- loadAnimations filePaths
+    tail <- animLocationToMap xs
+    return (Map.insert name (Map.fromList animsInFolder) tail)
 
-giveNames :: [String] -> [Animation] -> [(String, Animation)]
-giveNames (n:ns) (a:as) = (stripPath n, a) : giveNames ns as
-    where stripPath string  | isJust (elemIndex '/' n) = stripPath (drop (fromJust (elemIndex '/' string)) string)
-                            | otherwise                = string
+loadAnimations :: [FilePath] -> IO [(String, Animation)]
+loadAnimations []     = return []
+loadAnimations (x:xs) = do
+    head <- loadAnimation x
+    tail <- loadAnimations xs
+    return (head : tail)
 
+loadAnimation :: FilePath -> IO (String, Animation)
+loadAnimation path = do
+    let stripDir = last (splitOn "\\" path)
+        [name,details] = splitOn "_" stripDir
+        [strsheetDimensions, frameTime, looping] = splitOn "," details
+        sheetDimensions@[x,y] = map read (splitOn "x" strsheetDimensions) 
+    frames <- loadSpriteSheet path (x,y)
+    let anim = Animation {
+        frames = frames,
+        frameLength = read frameTime,
+        timer = 0,
+        index = 0,
+        loops = case looping of
+            "T" -> True
+            "F" -> False
+            _   -> True
+            }
+    return (name, anim)
+
+
+loadSpriteSheet :: FilePath -> (Int, Int) -> IO [Picture]
+loadSpriteSheet path ssDimensions= do
+    wholeSheet@(Bitmap bitmapData ) <- loadBMP path
+    let bmpDimensions = bitmapSize bitmapData
+        pics = slice ssDimensions bmpDimensions wholeSheet
+    return pics
+
+slice :: (Int, Int) -> (Int, Int) -> Picture -> [Picture]
+slice sheetDimensions@(rows, columns) bmpDimensions image = 
+    map scaleToWorld (sliceColumns columns image)
+
+sliceColumns :: Int  -> Picture -> [Picture]
+sliceColumns cs (Bitmap bmpD) = map (\cNr -> bitmapSection (Rectangle (s * cNr, 0) (s, h)) bmpD) [0 .. cs - 1]
+    where (w,h) = bitmapSize bmpD
+          s     = w `div` cs
+
+
+
+
+
+scaleToWorld :: Picture -> Picture
+scaleToWorld = Translate 0.5 0.5 . Scale (1/fromIntegral pixelsPerUnit) (1/fromIntegral pixelsPerUnit)

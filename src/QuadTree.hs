@@ -46,7 +46,7 @@ insert x t@(Node bb xs tl tr bl br)
         = insertAll (x:xs) (Node bb [] ntl ntr nbl nbr)
 
     -- welp, try the subnodes?
-    | any (\q -> x `fitsIn` getBB q) [ tl, tr, br, bl]
+    | any (\q -> x `fitsIn` getQTBB q) [ tl, tr, br, bl]
         = insertIntoQuadrant x t
 
     | otherwise
@@ -72,7 +72,7 @@ collapse (Node _ objs tl tr bl br) = concat [objs , collapse tl , collapse tr , 
 
 fitsIn :: (CollisionObject a) => a -> BoundingBox -> Bool
 fitsIn obj1 bb2 = topLeft bb1 >= topLeft bb2 && bottomRight bb1 <= bottomRight bb2
-    where bb1 = getBoundingBox obj1
+    where bb1 = getBB obj1
 
 newNode :: CollisionObject a => BoundingBox -> QuadTree a
 newNode bb = Node bb [] EmptyLeaf EmptyLeaf EmptyLeaf EmptyLeaf
@@ -80,8 +80,8 @@ newNode bb = Node bb [] EmptyLeaf EmptyLeaf EmptyLeaf EmptyLeaf
 hasSubNodes :: (CollisionObject a, Eq a) => QuadTree a -> Bool
 hasSubNodes (Node _ _ tl _ _ _) = tl /= EmptyLeaf
 
-getBB :: CollisionObject a => QuadTree a -> BoundingBox
-getBB (Node bb _ _ _ _ _) = bb
+getQTBB :: CollisionObject a => QuadTree a -> BoundingBox
+getQTBB (Node bb _ _ _ _ _) = bb
 
 collidesWith :: (CollisionObject a, CollisionObject b) => a -> b -> Bool
 collidesWith objA objB =
@@ -89,15 +89,15 @@ collidesWith objA objB =
     xA + wA > xB &&
     yA < yB + hB &&
     yA + hA > yB
-    where   ((xA, yA), (wA, hA)) = getBoundingBox objA
-            ((xB, yB), (wB, hB)) = getBoundingBox objB
+    where   ((xA, yA), (wA, hA)) = getBB objA
+            ((xB, yB), (wB, hB)) = getBB objB
 
 -- positive x = right; negative x = left
 -- positive y = bottom; negative y = top
 overlap :: (CollisionObject a, CollisionObject b) => a -> b -> (Float, Float)
 overlap objA objB = (xOverlap , yOverlap)
-  where ((xA, yA), (wA, hA)) = getBoundingBox objA
-        ((xB, yB), (wB, hB)) = getBoundingBox objB
+  where ((xA, yA), (wA, hA)) = getBB objA
+        ((xB, yB), (wB, hB)) = getBB objB
         xOverlap    | xA <= xB  = (xA + wA) - xB
                     | otherwise = xA - (xB + wB)
         yOverlap    | yA <= yB  = (yA + hA) - yB
