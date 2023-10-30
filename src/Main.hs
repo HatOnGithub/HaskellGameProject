@@ -22,12 +22,10 @@ main = do
     playIO (InWindow "Pringlio" (1024, 840) (0,0))
               blue
               120
-              initialState
-              (view anims)
+              (assignAnimations anims initialState)
+              view
               input
               step
-
-
 
 animLocationToMap :: [(String, String)] -> IO (Map String (Map String Animation))
 animLocationToMap [] = return Map.empty
@@ -79,10 +77,6 @@ sliceColumns :: Int  -> Picture -> [Picture]
 sliceColumns cs (Bitmap bmpD) = map (\cNr -> bitmapSection (Rectangle (s * cNr, 0) (s, h)) bmpD) [0 .. cs - 1]
     where (w,h) = bitmapSize bmpD
           s     = w `div` cs
-
-
-
-
 
 scaleToWorld :: Picture -> Picture
 scaleToWorld = Translate 0.5 0.5 . Scale (1/fromIntegral pixelsPerUnit) (1/fromIntegral pixelsPerUnit)

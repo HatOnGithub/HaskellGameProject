@@ -15,23 +15,19 @@ worldScale :: Float
 -- zoom * sprite size
 worldScale = 2 * fromIntegral pixelsPerUnit
 
-
-
-
-view :: Map String (Map String Animation) -> World -> IO Picture
-view map w = do
-    let pics = reverse (viewPure map w)
+view ::  World -> IO Picture
+view  w = do
+    let pics = reverse (viewPure w)
     return (Pictures pics)
 
-viewPure :: Map String (Map String Animation) -> World -> [Picture]
-viewPure map w@(World {
+viewPure :: World -> [Picture]
+viewPure w@(World {
     player, enemies, blocks, pickupObjects, points,
-    timeLeft, camera, gameState, worldSize}) = do
-        let newW = assignMissingAnimations map w
-        viewUI  newW ++ viewWorld newW
+    timeLeft, camera, gameState, worldSize}) = 
+        viewUI  w ++ viewWorld w
 
-assignMissingAnimations :: Map String (Map String Animation) -> World -> World
-assignMissingAnimations m w@(World {
+assignAnimations :: Map String (Map String Animation) -> World -> World
+assignAnimations m w@(World {
     player, enemies, blocks, pickupObjects, points,
     timeLeft, camera, gameState, worldSize}) = do
         let newP  = tryAssign m player
