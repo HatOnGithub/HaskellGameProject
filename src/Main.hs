@@ -14,18 +14,18 @@ import Data.Maybe
 import GHC.Cmm (Width)
 
 animLocations :: [(String, String)]
-animLocations = [("Mario", "src\\Textures\\Mario")]
+animLocations = [("Mario", "src\\Textures\\Mario"), ("Brick", "src\\Textures\\Blocks\\Brick")]
 
 main :: IO ()
 main = do
     anims <- animLocationToMap animLocations
     playIO (InWindow "Pringlio" (1024, 840) (0,0))
-              blue
-              120
-              (assignAnimations anims initialState)
-              view
-              input
-              step
+            blue
+            120
+            initialState
+            view
+            input
+            (step anims)
 
 animLocationToMap :: [(String, String)] -> IO (Map String (Map String Animation))
 animLocationToMap [] = return Map.empty

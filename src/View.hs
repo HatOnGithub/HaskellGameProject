@@ -21,23 +21,9 @@ view  w = do
     return (Pictures pics)
 
 viewPure :: World -> [Picture]
-viewPure w@(World {
-    player, enemies, blocks, pickupObjects, points,
-    timeLeft, camera, gameState, worldSize}) = 
-        viewUI  w ++ viewWorld w
+viewPure w = viewUI w ++ viewWorld w
 
-assignAnimations :: Map String (Map String Animation) -> World -> World
-assignAnimations m w@(World {
-    player, enemies, blocks, pickupObjects, points,
-    timeLeft, camera, gameState, worldSize}) = do
-        let newP  = tryAssign m player
-            newEs = map (tryAssign m) enemies
-            newBs = map (tryAssign m) blocks
-            newPos= map (tryAssign m) pickupObjects
-        w {player = newP, enemies = newEs, blocks = newBs, pickupObjects = newPos}
 
-tryAssign :: CollisionObject a => Map String (Map String Animation) -> a -> a
-tryAssign map obj = if hasNoAnimations obj && isJust (map !? getName obj ) then setAnimations obj (map ! getName obj) else obj
 
 viewUI :: World -> [Picture]
 viewUI w@(World {

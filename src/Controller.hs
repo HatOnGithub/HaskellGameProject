@@ -6,10 +6,12 @@ import Graphics.Gloss.Interface.IO.Game
 import Model
 import QuadTree
 import Data.List
+import Data.Map (Map, (!?), (!))
+import Data.Maybe
 
-step :: Float -> World -> IO World
-step dt w | gameState w == GoMode = (return  . updateTimes dt . processCollision . processGravity dt . processVectors dt . updateMovementStates) w
-          | otherwise             = return w
+step :: Map String (Map String Animation) -> Float -> World -> IO World
+step m dt w | gameState w == GoMode = (return  . assignAnimations m . updateTimes dt . processCollision . processGravity dt . processVectors dt . updateMovementStates) w
+            | otherwise             = return w
 --step dt = return . updateTimes dt . processCollision . processVectors dt 
 
 input :: Event -> World -> IO World
@@ -43,9 +45,24 @@ input (EventKey key Up _ _) w@( World { player }) = do
 -- unmapped key? unknown input? ignore lmao    
 input _ w = return w
 
-
 tryJump w@( World { player }) | isGrounded player   = return w{player = player {velocity = velocity player + (0, jumpVelocity), grounded = False, movementState = Jumping}}
                               | otherwise           = return w
+
+assignAnimations :: Map String (Map String Animation) -> World -> World
+assignAnimations m w@(World {
+    player, enemies, blocks, pickupObjects, points,
+    timeLeft, camera, gameState, worldSize}) = do
+        let newP  = tryAssign m player
+            newEs = map (tryAssign m) enemies
+            newBs = map (tryAssign m) blocks
+            newPos= map (tryAssign m) pickupObjects
+        w {player = newP, enemies = newEs, blocks = newBs, pickupObjects = newPos}
+
+tryAssign :: CollisionObject a => Map String (Map String Animation) -> a -> a
+tryAssign map obj
+  | not (hasNoAnimations obj) = obj
+  | isJust (map !? getName obj ) = setAnimations obj (map ! getName obj)
+  | otherwise = obj
 
 updateTimes :: Float -> World -> World
 updateTimes dt w@( World { player, enemies, blocks, pickupObjects, timeLeft }) = w{
