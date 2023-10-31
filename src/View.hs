@@ -6,6 +6,7 @@ import Data.Map hiding (map)
 import qualified Data.Map as Map
 import Data.Maybe (isJust)
 import Prelude hiding (flip)
+import QuadTree
 
 -- oooooh scary IO
 view ::  World -> IO Picture
@@ -31,7 +32,8 @@ viewWorld w@(World {
         getFrame camera player  :
         Prelude.map (getFrame camera) enemies ++
         Prelude.map (getFrame camera) blocks ++
-        Prelude.map (getFrame camera) pickupObjects 
+        Prelude.map (getFrame camera) pickupObjects ++
+        [viewQT w]
 
 getFrame :: CollisionObject a => Camera -> a -> Picture
 getFrame c obj = 
@@ -49,7 +51,7 @@ getFrame' obj c Nothing  = Scale worldScale worldScale (uncurry Translate (getPo
 
 
 -- no longer used, took too much effort to throw away
-{-
+
 
 viewQT :: World -> Picture
 viewQT w@(World {
@@ -66,10 +68,9 @@ viewQT w@(World {
 quadTreeToPictures :: CollisionObject a => Color -> Point -> QuadTree a -> Picture
 quadTreeToPictures _ _ EmptyLeaf = Blank
 quadTreeToPictures color cam (Node (pos,(w,h)) _ tl tr bl br) = Pictures [
-    Color color (Scale worldScale worldScale (uncurry Translate (pos - cam) (Line [(0,0), ( w, 0), (w, h), (0, h)]))),
+    Color color (Scale worldScale worldScale (uncurry Translate (pos - cam) (Line [(0,0), ( w, 0), (w, h), (0, h), (0,0)]))),
     quadTreeToPictures (dim color) cam tl,
     quadTreeToPictures (dim color) cam tr,
     quadTreeToPictures (dim color) cam bl,
     quadTreeToPictures (dim color) cam br]
 
--}

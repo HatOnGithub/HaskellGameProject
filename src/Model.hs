@@ -21,7 +21,8 @@ initialState = World{
   points = 0,
   camera = (10,10),
   gameState = GoMode,
-  worldSize = (20,20)}
+  worldSize = (32,32),
+  keyboardState = KeyBoardState []}
 
 missingTexture :: Picture
 missingTexture = Pictures [
@@ -45,10 +46,12 @@ mvmntVelocity = 10
 jumpVelocity :: Float
 jumpVelocity = 26
 
-
 worldScale :: Float
 -- zoom * sprite size
-worldScale = 2 * fromIntegral pixelsPerUnit
+worldScale = 3 * fromIntegral pixelsPerUnit
+
+bottomOfScreenClamp :: Float
+bottomOfScreenClamp = 6.55
 
 toPoint :: Num a => a -> (a,a)
 toPoint n = (n,n)
@@ -204,6 +207,11 @@ data World = World {
   , camera        :: Camera
   , gameState     :: GameState
   , worldSize     :: Point
+  , keyboardState :: KeyBoardState
+}
+
+newtype KeyBoardState = KeyBoardState {
+   keys         :: [Char]
 }
 
 addPoints :: Int -> World -> World
