@@ -14,8 +14,8 @@ initialState :: World
 initialState = World{
   player = mario (10,2.8),
   enemies = [],
-  blocks = [brick (7,2), brick (8,2), brick (9,2), brick (10,2), brick (11,2),brick (9,2),brick (12,2),brick (12,3)
-           ,brick (13,2),brick (14,2),brick (15,2),brick (12,7)],
+  blocks = [brick (7,2), brick (8,2), brick (9,2), brick (10,2), brick (11,2),brick (9,2)
+           ,brick (12,2),brick (12,3),brick (13,2),brick (14,2),brick (15,2),brick (12,7)],
   pickupObjects = [],
   timeLeft = NA,
   points = 0,
@@ -61,9 +61,6 @@ data GameState = GoMode | Pause
 
 data Animation = Animation { frames :: [Picture], frameLength :: Float, timer :: Float, index :: Int, loops :: Bool }
 
-instance Show Animation where
-  show a = show (length (frames a)) ++ " Frames, " ++ show (frameLength a) ++ " second Framelength, Time: " ++ show (timer a) ++ " , Index " ++ show (index a)
-
 type BoundingBox = (Point, Point)
 
 type Camera = Point
@@ -78,11 +75,6 @@ data AIPattern = HopChase | Throw | Patrol | RunAway | Bowser
   deriving (Eq, Show)
 
 data BlockContents = Object PickupObject | Coin | Empty
-
-instance Show BlockContents where
-  show (Object _) = "Full"
-  show Coin       = "Full"
-  show Empty      = "Empty"
 
 
 data PickupType = Mushroom | FireFlower | Star
@@ -191,9 +183,6 @@ popBlock :: Block -> (Block, BlockContents)
 popBlock b | show (item b) == "Full" = (b{item = Empty}, item b)
            | otherwise = (b, Empty)
 
-instance Show Block where
-  show b = "Block at" ++ show (bposition b)
-
 data PickupObject = PickupObject {
     poname          :: String
   , poposition      :: Point
@@ -244,7 +233,7 @@ clamp val minimum maximum = min maximum (max minimum val)
 
 -- for your own sanity, don't look down here
 
--- Point Instances
+-- General Instances
 instance Num (Float, Float) where
   (+) (x1,y1) (x2,y2) = (x1 + x2, y1 + y2)
   (-) (x1,y1) (x2,y2) = (x1 - x2, y1 - y2)
@@ -253,6 +242,14 @@ instance Num (Float, Float) where
   abs (x,y) = (abs x, abs y)
   fromInteger n = (fromInteger n, fromInteger n)
   signum = undefined
+
+instance Show BlockContents where
+  show (Object _) = "Full"
+  show Coin       = "Full"
+  show Empty      = "Empty"
+
+instance Show Animation where
+  show a = show (length (frames a)) ++ " Frames, " ++ show (frameLength a) ++ " second Framelength, Time: " ++ show (timer a) ++ " , Index " ++ show (index a)
 
 -- Player Instances
 instance CollisionObject Player where
@@ -311,6 +308,9 @@ instance CollisionObject Block where
 
 instance Eq Block where
   (==) b1 b2 = bposition b1 == bposition b2
+
+instance Show Block where
+  show b = "Block at" ++ show (bposition b)
 
 -- PickupObject Instances
 instance CollisionObject PickupObject where
