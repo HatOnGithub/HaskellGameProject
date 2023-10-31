@@ -15,7 +15,7 @@ initialState = World{
   player = mario (10,2.8),
   enemies = [],
   blocks = [brick (7,2), brick (8,2), brick (9,2), brick (10,2), brick (11,2),brick (9,2),brick (12,2),brick (12,3)
-           ,brick (13,2),brick (14,2),brick (15,2),brick (12,8)],
+           ,brick (13,2),brick (14,2),brick (15,2),brick (12,7)],
   pickupObjects = [],
   timeLeft = NA,
   points = 0,
@@ -43,7 +43,7 @@ mvmntVelocity :: Float
 mvmntVelocity = 10
 
 jumpVelocity :: Float
-jumpVelocity = 28
+jumpVelocity = 24
 
 
 worldScale :: Float
