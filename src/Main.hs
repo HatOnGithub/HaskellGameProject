@@ -14,7 +14,9 @@ import Data.Maybe
 import GHC.Cmm (Width)
 
 animLocations :: [(String, String)]
-animLocations = [("Mario", "src\\Textures\\Mario"), ("Brick", "src\\Textures\\Blocks\\Brick")]
+animLocations = [
+      ("Mario", "src\\Textures\\Mario")
+    , ("Brick", "src\\Textures\\Blocks\\Brick")]
 
 main :: IO ()
 main = do
@@ -71,12 +73,16 @@ loadSpriteSheet path ssDimensions= do
 
 slice :: (Int, Int) -> (Int, Int) -> Picture -> [Picture]
 slice sheetDimensions@(rows, columns) bmpDimensions image = 
-    map scaleToWorld (sliceColumns columns image)
+    map scaleToWorld ( concatMap (sliceColumns columns) (sliceRows rows image))
+
+sliceRows :: Int -> Picture -> [Picture]
+sliceRows rs (Bitmap bitmapData) = map (\cNr -> bitmapSection (Rectangle (0, s * cNr) (w, s)) bitmapData) [0 .. rs - 1]
+    where   (w,h) = bitmapSize bitmapData
+            s     = h `div` rs
 
 sliceColumns :: Int  -> Picture -> [Picture]
-sliceColumns cs (Bitmap bmpD) = map (\cNr -> bitmapSection (Rectangle (s * cNr, 0) (s, h)) bmpD) [0 .. cs - 1]
-    where (w,h) = bitmapSize bmpD
-          s     = w `div` cs
+sliceColumns cs (BitmapSection (Rectangle (x,y) (w,h)) bmpD) = map (\cNr -> bitmapSection (Rectangle (x + s * cNr, y) (s, h)) bmpD) [0 .. cs - 1]
+    where s     = w `div` cs
 
 scaleToWorld :: Picture -> Picture
 scaleToWorld = Translate 0.5 0.5 . Scale (1/fromIntegral pixelsPerUnit) (1/fromIntegral pixelsPerUnit)

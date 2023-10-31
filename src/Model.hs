@@ -254,9 +254,11 @@ instance Show Animation where
 -- Player Instances
 instance CollisionObject Player where
   -- trivial stuff
-  getName _ = "Mario"; getBB p = (position p, boundingBoxS p); getVel = velocity; getPos = position; isAlive = alive; kill p = p {alive = False}; facingLeft = isFacingLeft; faceLeft p b = p {isFacingLeft = b}
+  getName _ = "Mario";  getVel = velocity; getPos = position; isAlive = alive; kill p = p {alive = False}; facingLeft = isFacingLeft; faceLeft p b = p {isFacingLeft = b}
   setInternalState p newState= p {movementState = newState}; groundState p b = p {grounded = b}; isGrounded = grounded; getInternalState = movementState
   -- bit more complicated stuff
+  getBB p | movementState p /= Crouching && powerUpState p /= Small  = (position p, (1,2))
+          | otherwise = (position p, (1,1))
   setBBSize p@(Player {boundingBoxS}) newBBSize = p {boundingBoxS = newBBSize}
   setVel p@(Player {velocity}) newVelocity = p {velocity = newVelocity}
   setPos p@(Player {position}) newPos = p {position = newPos}
