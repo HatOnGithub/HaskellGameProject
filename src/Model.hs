@@ -12,9 +12,9 @@ import Data.Fixed (mod')
 
 initialState :: World
 initialState = World{
-  player = mario (10,2.8),
+  player = mario (11,2.8),
   enemies = [],
-  blocks = [brick (7,2), brick (8,2), brick (9,2), brick (10,2), brick (11,2),brick (9,2)
+  blocks = [brick (7,2), brick (8,2), brick (9,2), brick (10,2), brick (11,2),brick (9,2), brick (10,3)
            ,brick (12,2),brick (12,3),brick (13,2),brick (14,2),brick (15,2),brick (12,7)],
   pickupObjects = [],
   timeLeft = NA,
@@ -128,8 +128,8 @@ mario pos = Player {
   , velocity      = (0,0)
   , animations    = Map.empty
   , movementState = Standing
-  , powerUpState  = Small
-  , boundingBoxS  = (1,1)
+  , powerUpState  = Large
+  , boundingBoxS  = (0.9,1)
   , starMan       = False
   , starManTimer  = 0
   , grounded      = False
@@ -158,7 +158,7 @@ goomba pos = Enemy {
   , eanimations     = Map.empty
   , emovementState  = Standing
   , aIPattern       = Patrol
-  , eboundingBoxS   = (1,1)
+  , eboundingBoxS   = (0.9,1)
   , egrounded       = False
   , ealive          = True
   , efacingLeft     = False }
@@ -265,8 +265,8 @@ instance CollisionObject Player where
   getName _ = "Mario";  getVel = velocity; getPos = position; isAlive = alive; kill p = p {alive = False}; facingLeft = isFacingLeft; faceLeft p b = p {isFacingLeft = b}
   setInternalState p newState= p {movementState = newState}; groundState p b = p {grounded = b}; isGrounded = grounded; getInternalState = movementState
   -- bit more complicated stuff
-  getBB p | movementState p /= Crouching && powerUpState p /= Small  = (position p, (1,2))
-          | otherwise = (position p, (1,1))
+  getBB p | movementState p /= Crouching && powerUpState p /= Small  = (position p + (0.05, 0), (0.9,2))
+          | otherwise = (position p + (0.05, 0), (0.9,1))
   setBBSize p@(Player {boundingBoxS}) newBBSize = p {boundingBoxS = newBBSize}
   setVel p@(Player {velocity}) newVelocity = p {velocity = newVelocity}
   setPos p@(Player {position}) newPos = p {position = newPos}
@@ -282,7 +282,7 @@ instance Show Player where
 -- Enemy Instances
 instance CollisionObject Enemy where
   -- trivial stuff
-  getName = ename ; getBB e = (eposition e, eboundingBoxS e);getVel = evelocity;getPos = eposition ; isAlive = ealive ; getInternalState = emovementState
+  getName = ename ; getBB e = (eposition e + (0.05, 0), eboundingBoxS e);getVel = evelocity;getPos = eposition ; isAlive = ealive ; getInternalState = emovementState
   isGrounded = egrounded; groundState e b = e{egrounded = b}; setInternalState e newState= e {emovementState = newState};  kill e = e {ealive = False}
   facingLeft = efacingLeft; faceLeft p b = p{efacingLeft = b}
   -- bit more complicated stuff
@@ -325,7 +325,7 @@ instance Show Block where
 -- PickupObject Instances
 instance CollisionObject PickupObject where
   -- trivial stuff
-  getName = poname; getBB po = (poposition po, poboundingBoxS po); getVel = povelocity;getPos = poposition; getInternalState _ = Walking
+  getName = poname; getBB po = (poposition po + (0.05,0), poboundingBoxS po); getVel = povelocity;getPos = poposition; getInternalState _ = Walking
   isGrounded = pogrounded ; setInternalState po _ = po ;  isAlive = poalive ;  groundState po b = po{pogrounded = b} ; kill po = po {poalive = False}
   facingLeft _ = False; faceLeft po _ = po
   -- bit more complicated stuff

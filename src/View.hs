@@ -32,8 +32,8 @@ viewWorld w@(World {
         getFrame camera player  :
         Prelude.map (getFrame camera) enemies ++
         Prelude.map (getFrame camera) blocks ++
-        Prelude.map (getFrame camera) pickupObjects ++
-        [viewQT w]
+        Prelude.map (getFrame camera) pickupObjects 
+        -- ++[viewQT w]
 
 getFrame :: CollisionObject a => Camera -> a -> Picture
 getFrame c obj = 
@@ -47,7 +47,8 @@ flip = Translate 0.5 0 . Scale (-1) 1
 
 getFrame' :: CollisionObject a => a -> Camera -> Maybe Animation -> Picture
 getFrame' obj c (Just a) = Scale worldScale worldScale (uncurry Translate (getPos obj - c) (frames a !! index a))
-getFrame' obj c Nothing  = Scale worldScale worldScale (uncurry Translate (getPos obj - c) missingTexture)
+getFrame' obj c Nothing  = Scale worldScale worldScale (uncurry Translate (getPos obj - c) (Scale x y missingTexture))
+    where (_, (x,y)) = getBB obj
 
 
 -- no longer used, took too much effort to throw away
