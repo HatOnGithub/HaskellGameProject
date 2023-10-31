@@ -166,7 +166,7 @@ worldCollision obj bTree = do
         let areAbove (x,y)      = abs x > abs y && y > 0
         let isGrounded          = any (areUnderneath . (obj `overlap`)) collidableBlocks
         let hitCeiling          = any (areAbove . (obj `overlap`)) collidableBlocks
-        if hitCeiling then groundState (correctPosition (setVel obj (getVel obj * (1,0))) sortedOnDistance) isGrounded
+        if hitCeiling && snd (getVel obj) < 0 then groundState (correctPosition (setVel obj (getVel obj * (1,0))) sortedOnDistance) isGrounded
         else groundState (correctPosition obj sortedOnDistance) isGrounded
 
 -- since all objects are rectangular, use the smallest change in position to correct for a collision, 
