@@ -43,21 +43,12 @@ mvmntVelocity :: Float
 mvmntVelocity = 10
 
 jumpVelocity :: Float
-jumpVelocity = 24
+jumpVelocity = 26
 
 
 worldScale :: Float
 -- zoom * sprite size
 worldScale = 2 * fromIntegral pixelsPerUnit
-
-instance Num (Float, Float) where
-  (+) (x1,y1) (x2,y2) = (x1 + x2, y1 + y2)
-  (-) (x1,y1) (x2,y2) = (x1 - x2, y1 - y2)
-  (*) (x1,y1) (x2,y2) = (x1 * x2, y1 * y2)
-  negate (x,y) = (-x,-y)
-  abs (x,y) = (abs x, abs y)
-  fromInteger n = (fromInteger n, fromInteger n)
-  signum = undefined
 
 toPoint :: Num a => a -> (a,a)
 toPoint n = (n,n)
@@ -80,7 +71,7 @@ type Camera = Point
 data MovementState = Standing | Walking | Running | Jumping | Crouching | GroundedFiring | MidAirFiring
   deriving (Eq, Show)
 
-data PowerUpState = Small | Large | Fire | Starman Float
+data PowerUpState = Small | Large | Fire
   deriving (Eq, Show)
 
 data AIPattern = HopChase | Throw | Patrol | RunAway | Bowser
@@ -130,6 +121,7 @@ data Player = Player {
   , powerUpState  :: PowerUpState
   , boundingBoxS  :: Point
   , starMan       :: Bool
+  , starManTimer  :: Float
   , grounded      :: Bool
   , alive         :: Bool
   , isFacingLeft  :: Bool
@@ -144,6 +136,7 @@ mario pos = Player {
   , powerUpState  = Small
   , boundingBoxS  = (1,1)
   , starMan       = False
+  , starManTimer  = 0
   , grounded      = False
   , alive         = True
   , isFacingLeft  = False
@@ -250,6 +243,16 @@ clamp :: (Ord a) => a -> a -> a -> a
 clamp val minimum maximum = min maximum (max minimum val)
 
 -- for your own sanity, don't look down here
+
+-- Point Instances
+instance Num (Float, Float) where
+  (+) (x1,y1) (x2,y2) = (x1 + x2, y1 + y2)
+  (-) (x1,y1) (x2,y2) = (x1 - x2, y1 - y2)
+  (*) (x1,y1) (x2,y2) = (x1 * x2, y1 * y2)
+  negate (x,y) = (-x,-y)
+  abs (x,y) = (abs x, abs y)
+  fromInteger n = (fromInteger n, fromInteger n)
+  signum = undefined
 
 -- Player Instances
 instance CollisionObject Player where
