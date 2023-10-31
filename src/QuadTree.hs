@@ -20,9 +20,15 @@ getCollisionPartners obj n@(Node bb objs tl tr bl br )
         -- seems like we reached civilisation
     | not (null objs)   = collapse n
         -- hmm, we can go deeper, no one is here
-    | obj `fitsIn` bb   = concatMap (getCollisionPartners obj) [ tl, tr, bl, br]
+    | getBB obj `intersects` bb   = concatMap (getCollisionPartners obj) [ tl, tr, bl, br]
         -- huh, there is no one here
     | otherwise         = []
+
+getAllInArea ::  (CollisionObject b) => BoundingBox -> QuadTree b -> [b]
+getAllInArea _ EmptyLeaf = []
+getAllInArea area n@(Node bb objs tl tr bl br )
+    | area `intersects` bb  = filter (\obj -> bb `intersects` getBB obj) objs ++ concatMap (getAllInArea area) [tl,tr,bl,br]
+    | otherwise             = []
 
 buildQuadTree :: (CollisionObject a, Eq a) => [a] -> Point -> QuadTree a
 buildQuadTree l worldSize = insertAll l (Node ((0,0),  worldSize) [] EmptyLeaf EmptyLeaf EmptyLeaf EmptyLeaf)
@@ -70,6 +76,7 @@ collapse :: CollisionObject a => QuadTree a -> [a]
 collapse EmptyLeaf = []
 collapse (Node _ objs tl tr bl br) = concat [objs , collapse tl , collapse tr , collapse bl , collapse br]
 
+
 fitsIn :: (CollisionObject a) => a -> BoundingBox -> Bool
 fitsIn obj1 bb2 = topLeft bb1 >= topLeft bb2 && bottomRight bb1 <= bottomRight bb2
     where bb1 = getBB obj1
@@ -84,13 +91,14 @@ getQTBB :: CollisionObject a => QuadTree a -> BoundingBox
 getQTBB (Node bb _ _ _ _ _) = bb
 
 collidesWith :: (CollisionObject a, CollisionObject b) => a -> b -> Bool
-collidesWith objA objB =
+collidesWith objA objB = intersects (getBB objA) (getBB objB)
+
+intersects :: BoundingBox -> BoundingBox -> Bool
+intersects ((xA, yA), (wA, hA)) ((xB, yB), (wB, hB)) =
     xA < xB + wB &&
     xA + wA > xB &&
     yA < yB + hB &&
     yA + hA > yB
-    where   ((xA, yA), (wA, hA)) = getBB objA
-            ((xB, yB), (wB, hB)) = getBB objB
 
 -- positive x = right; negative x = left
 -- positive y = bottom; negative y = top

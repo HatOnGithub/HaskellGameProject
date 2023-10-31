@@ -1,6 +1,5 @@
 {-# LANGUAGE NamedFieldPuns #-}
 module Controller where
-
 import Graphics.Gloss
 import Graphics.Gloss.Interface.IO.Game
 import Model
@@ -9,10 +8,15 @@ import Data.List
 import Data.Map (Map, (!?), (!))
 import Data.Maybe
 
+
 step :: Map String (Map String Animation) -> Float -> World -> IO World
-step m dt w | gameState w == GoMode = (return  . assignAnimations m . updateTimes dt . processCollision . processGravity dt . processVectors dt . updateMovementStates) w
+step m dt w | gameState w == GoMode = (return  . assignAnimations m . stepPure dt) w
             | otherwise             = return w
 --step dt = return . updateTimes dt . processCollision . processVectors dt 
+
+stepPure ::  Float -> World -> World
+stepPure dt w | gameState w == GoMode = (updateTimes dt . processCollision . processGravity dt . processVectors dt . updateMovementStates) w
+              | otherwise             =  w
 
 input :: Event -> World -> IO World
 input (EventKey key Down _ _) w@( World { player, enemies }) = do
@@ -48,6 +52,9 @@ input _ w = return w
 tryJump w@( World { player }) | isGrounded player   = return w{player = player {velocity = velocity player + (0, jumpVelocity), grounded = False, movementState = Jumping}}
                               | otherwise           = return w
 
+
+-- all pure stuff here
+
 assignAnimations :: Map String (Map String Animation) -> World -> World
 assignAnimations m w@(World {
     player, enemies, blocks, pickupObjects, points,
@@ -60,9 +67,9 @@ assignAnimations m w@(World {
 
 tryAssign :: CollisionObject a => Map String (Map String Animation) -> a -> a
 tryAssign map obj
-  | not (hasNoAnimations obj) = obj
+  | not    (hasNoAnimations obj) = obj
   | isJust (map !? getName obj ) = setAnimations obj (map ! getName obj)
-  | otherwise = obj
+  | otherwise                    = obj
 
 updateTimes :: Float -> World -> World
 updateTimes dt w@( World { player, enemies, blocks, pickupObjects, timeLeft }) = w{
@@ -166,7 +173,6 @@ worldCollision obj bTree = do
 -- work through each collision in order of distance
 correctPosition ::  CollisionObject a => a -> [Block] -> a
 correctPosition = foldl (\ obj x -> setPos obj (getPos obj - smallestChange (obj `overlap` x)))
-    where smallestChange (x,y)  | abs x <  abs y = verySmallOffset * (x , 0)
-                                | abs x >= abs y = verySmallOffset * (0 , y)
-          verySmallOffset       = (1.00001,1.00001)
+    where smallestChange (x,y)  | abs x <  abs y = (x , 0)
+                                | abs x >= abs y = (0 , y)
 

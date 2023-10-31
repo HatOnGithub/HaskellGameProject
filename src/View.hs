@@ -2,28 +2,21 @@
 module View where
 import Graphics.Gloss
 import Model
-import GHC.Data.Bitmap
 import Data.Map hiding (map)
-import GHC.Driver.Session (positionIndependent)
-import QuadTree
 import qualified Data.Map as Map
 import Data.Maybe (isJust)
 import Prelude hiding (flip)
 
-
-worldScale :: Float
--- zoom * sprite size
-worldScale = 2 * fromIntegral pixelsPerUnit
-
+-- oooooh scary IO
 view ::  World -> IO Picture
 view  w = do
     let pics = reverse (viewPure w)
     return (Pictures pics)
 
+
+-- safe pure stuff
 viewPure :: World -> [Picture]
 viewPure w = viewUI w ++ viewWorld w
-
-
 
 viewUI :: World -> [Picture]
 viewUI w@(World {
@@ -38,8 +31,7 @@ viewWorld w@(World {
         getFrame camera player  :
         Prelude.map (getFrame camera) enemies ++
         Prelude.map (getFrame camera) blocks ++
-        Prelude.map (getFrame camera) pickupObjects ++
-        [viewQT w]
+        Prelude.map (getFrame camera) pickupObjects 
 
 getFrame :: CollisionObject a => Camera -> a -> Picture
 getFrame c obj = 
@@ -52,10 +44,12 @@ flip :: Picture -> Picture
 flip = Translate 0.5 0 . Scale (-1) 1
 
 getFrame' :: CollisionObject a => a -> Camera -> Maybe Animation -> Picture
--- found animation!
 getFrame' obj c (Just a) = Scale worldScale worldScale (uncurry Translate (getPos obj - c) (frames a !! index a))
--- uh, where is it?
 getFrame' obj c Nothing  = Scale worldScale worldScale (uncurry Translate (getPos obj - c) missingTexture)
+
+
+-- no longer used, took too much effort to throw away
+{-
 
 viewQT :: World -> Picture
 viewQT w@(World {
@@ -78,3 +72,4 @@ quadTreeToPictures color cam (Node (pos,(w,h)) _ tl tr bl br) = Pictures [
     quadTreeToPictures (dim color) cam bl,
     quadTreeToPictures (dim color) cam br]
 
+-}
