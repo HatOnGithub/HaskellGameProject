@@ -68,7 +68,7 @@ type BoundingBox = (Point, Point)
 
 type Camera = Point
 
-data MovementState = Standing | Walking | Running | Jumping | Crouching | GroundedFiring | MidAirFiring
+data MovementState = Standing | Walking | Running | Jumping | Falling | Crouching | GroundedFiring | MidAirFiring
   deriving (Eq, Show)
 
 data PowerUpState = Small | Large | Fire

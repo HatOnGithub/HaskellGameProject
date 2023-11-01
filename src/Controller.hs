@@ -111,7 +111,9 @@ updateMovementState a = do
         else if  x /= 0 && abs x <  mvmntVelocity * 1.5      then setInternalState obj Walking
         else if  x /= 0 && abs x >= mvmntVelocity * 1.5      then setInternalState obj Running
         else obj
-    else if getInternalState obj /= MidAirFiring  then setInternalState obj Jumping
+    else if getInternalState obj /= MidAirFiring then 
+        if y > 0 then setInternalState obj Jumping
+        else setInternalState obj Falling
     else obj
 
 
