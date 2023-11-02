@@ -34,6 +34,9 @@ missingTexture = Pictures [
 movementModifier :: Float
 movementModifier = 1
 
+worldSpeed :: Float
+worldSpeed = 0.25
+
 gravity :: (Float, Float)
 gravity = (0, -60)
 
@@ -286,9 +289,9 @@ instance CollisionObject Enemy where
   isGrounded = egrounded; groundState e b = e{egrounded = b}; setInternalState e newState= e {emovementState = newState};  kill e = e {ealive = False}
   facingLeft = efacingLeft; faceLeft p b = p{efacingLeft = b}
   -- bit more complicated stuff
-  setBBSize obj@(Enemy {eboundingBoxS}) newBBSize = obj {eboundingBoxS = newBBSize}
-  setVel obj@(Enemy {evelocity}) newVelocity = obj {evelocity = newVelocity}
-  setPos obj@(Enemy {eposition}) newPos = obj {eposition = newPos}
+  setBBSize obj newBBSize = obj {eboundingBoxS = newBBSize}
+  setVel obj newVelocity = obj {evelocity = newVelocity}
+  setPos obj newPos = obj {eposition = newPos}
   hasNoAnimations e = size (eanimations e) == 0
   setAnimations e m = e{eanimations = m}
   getCurrentAnimation obj@(Enemy {emovementState, eanimations}) =  eanimations !? show emovementState

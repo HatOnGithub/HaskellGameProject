@@ -16,8 +16,9 @@ movementKeys =  [ 'w', 'W'
                 , 'd', 'D' ]
 
 step :: Map String (Map String Animation) -> Float -> World -> IO World
-step m dt w | gameState w == GoMode = (return  . assignAnimations m . stepPure dt) w
-            | otherwise             = return w
+step m rawdt w  | gameState w == GoMode = (return  . assignAnimations m . stepPure dt) w
+                | otherwise             = return w
+        where dt = rawdt * worldSpeed
 
 stepPure ::  Float -> World -> World
 stepPure dt w | gameState w == GoMode = ( updateTimes dt . processCollision . processGravity dt . processVectors dt . processInputs . updateMovementStates ) w
@@ -26,7 +27,7 @@ stepPure dt w | gameState w == GoMode = ( updateTimes dt . processCollision . pr
 input :: Event -> World -> IO World
 input (EventKey (Char key) Down mod _) w@( World { player, enemies, keyboardState = kbs@(KeyBoardState keys) }) = do
     let enemies' = enemies
-    if key == 'e' then return w{enemies = goomba (10,5) : enemies}
+    if key == 'e' then return w{enemies = goomba (8,4) : enemies}
     else if key `notElem` keys && key `elem` movementKeys then
         if shift mod == Down then return w {keyboardState = kbs { keys = toUpper key : keys}}
         else return w {keyboardState = kbs { keys = toLower key : keys}}
@@ -143,17 +144,14 @@ processGravity dt w@( World { player, enemies, pickupObjects }) = w {
         }
 
 applyVectors :: CollisionObject a => Float ->  a ->  a
-applyVectors dt obj =
-    if isAlive obj then
-        setPos obj (getPos obj + getVel obj * toPoint dt)
-    else
-        obj
+applyVectors dt obj | isAlive obj   = setPos obj (getPos obj + (getVel obj * toPoint dt))
+                    |otherwise      = obj
 
 
 applyGravity :: CollisionObject a => Float ->  a ->  a
 applyGravity dt obj | not (isAlive obj)          = setVel obj (0,0)
                     | not (isGrounded obj)       = setVel obj (getVel obj + gravity * toPoint dt)
-                    | snd (getVel obj) <= 0 = setVel obj (fst (getVel obj) , -0.1)
+                    | snd (getVel obj) <= 0      = setVel obj (fst (getVel obj) , -0.1)
                     | otherwise = obj
 
 processCollision ::  World -> World
@@ -178,18 +176,21 @@ enemyCollision bTree eTree w@( World { player, enemies, blocks, points }) = w {
 
 
 collideEnemy :: Enemy -> QuadTree Block -> QuadTree Enemy -> Enemy
-collideEnemy enemy bTree eTree = enemSpeed collideBlocks collideEnemies (worldCollision enemy bTree)
-    where
-        (vX, _) = getVel enemy
-        ((x, y), (w, h)) = getBB enemy
-        collideBox | vX >= 0 =((x + w, y),(w, h))
-                    |vX < 0 = ((x - w, y), (w, h))
-        collideBlocks = getAllInArea collideBox bTree
-        collideEnemies = getAllInArea collideBox eTree
+collideEnemy enemy bTree eTree = 
+    enemSpeed bTree eTree 
+    (worldCollision enemy bTree)
 
-enemSpeed :: [Block] -> [Enemy] -> Enemy -> Enemy
-enemSpeed [] [] enem = enem
-enemSpeed _ _ enem = setVel enem (getVel enem * (-1, 1) )
+
+enemSpeed :: QuadTree Block -> QuadTree Enemy -> Enemy -> Enemy
+enemSpeed bTree eTree e | not (null collideBlocks && null collideEnemies) = setVel e (getVel e * (-1, 1) )
+                        | otherwise = e
+    where
+        (vX, _) = getVel e
+        ((x, y), (w, h)) = getBB e
+        collideBox  | vX >= 0 =((x + (w + 0.01), y + 0.1),(0.011, h))
+                    | vX < 0 = ((x - (w + 0.021), y+ 0.1), (0.011, h))
+        collideBlocks  = getAllInArea collideBox bTree
+        collideEnemies = getAllInArea collideBox eTree
 
 
 
