@@ -14,8 +14,8 @@ initialState :: World
 initialState = World{
   player = mario (11,2.8),
   enemies = [],
-  blocks = [brick (7,2), brick (8,2), brick (9,2), brick (10,2), brick (11,2),brick (9,2), brick (10,3)
-           ,brick (12,2),brick (12,3),brick (13,2),brick (14,2),brick (15,2),brick (12,7)],
+  blocks = [brick (7,2) Empty, brick (8,2) Empty, brick (9,2) Empty, brick (10,2) Empty, brick (11,2) Empty,brick (9,2) Empty, brick (10,3) Empty
+           ,brick (12,2) Empty,brick (12,3) Empty,brick (13,2) Empty,brick (14,2) Empty,brick (15,2) Empty,brick (12,7) Empty],
   pickupObjects = [],
   timeLeft = NA,
   points = 0,
@@ -44,7 +44,7 @@ pixelsPerUnit :: Int
 pixelsPerUnit = 16
 
 mvmntVelocity :: Float
-mvmntVelocity = 10
+mvmntVelocity = 5
 
 jumpVelocity :: Float
 jumpVelocity = 26
@@ -80,8 +80,7 @@ data PowerUpState = Small | Large | Fire
 data AIPattern = HopChase | Throw | Patrol | RunAway | Bowser
   deriving (Eq, Show)
 
-data BlockContents = Object PickupObject | Coin | Empty
-
+data BlockContents = Object PickupType | Coin | Empty
 
 data PickupType = Mushroom | FireFlower | Star
   deriving (Eq, Show)
@@ -152,12 +151,12 @@ data Enemy = Enemy {
   , ealive          :: Bool
   , efacingLeft     :: Bool
 }
-
-goomba :: Point -> Enemy
-goomba pos = Enemy {
-    ename           = "Goomba"
-  , eposition       = pos
-  , evelocity       = (7,0)
+-- DO NOT INSTANTIATE AS IS, IS TEMPLATE
+basicEnemy :: Enemy 
+basicEnemy = Enemy {
+    ename           = ""
+  , eposition       = (0,0)
+  , evelocity       = (-mvmntVelocity,0)
   , eanimations     = Map.empty
   , emovementState  = Standing
   , aIPattern       = Patrol
@@ -165,6 +164,12 @@ goomba pos = Enemy {
   , egrounded       = False
   , ealive          = True
   , efacingLeft     = False }
+
+goomba :: Point -> Enemy
+goomba pos = basicEnemy { ename = "Goomba" , eposition = pos }
+
+koopa :: Point -> Enemy
+koopa pos = basicEnemy { ename = "Koopa" , eposition = pos }
 
 data Block = Block {
     bname           :: String
@@ -175,14 +180,47 @@ data Block = Block {
   , exists          :: Bool
 }
 
-brick :: Point -> Block
-brick pos = Block{
-    bname           = "Brick"
-  , bposition       = pos
+basicBlock :: Block
+basicBlock = Block{
+    bname           = ""
+  , bposition       = (0,0)
   , item            = Empty
   , textures        = Map.empty
   , bboundingBoxS   = (1,1)
   , exists          = True
+}
+
+stone :: Point -> Block
+stone pos = basicBlock {bname = "Stone", bposition = pos}
+
+brick :: Point -> BlockContents -> Block
+brick pos item = basicBlock{ bname = "Brick" , bposition = pos, item = item}
+
+block :: Point -> Block
+block pos = basicBlock {bname = "Block", bposition = pos}
+
+qBlock :: Point -> BlockContents -> Block
+qBlock pos item = basicBlock {bname = "QuestionBlock", bposition = pos, item = item }
+
+pipe :: Point -> Int -> Block
+pipe pos length = basicBlock {
+    bname           = "Pipe"
+  , bposition       = pos
+  , bboundingBoxS   = (2,fromIntegral length)
+}
+
+castle :: Point -> Block
+castle pos = basicBlock {
+    bname         = "Castle"
+  , bposition     = pos
+  , bboundingBoxS = (5,5)
+}
+
+pole :: Point -> Block
+pole pos = basicBlock {
+    bname         = "pole"
+  , bposition     = pos + (0.4, 0)
+  , bboundingBoxS = (0.2, 1)
 }
 
 popBlock :: Block -> (Block, BlockContents)
@@ -213,6 +251,20 @@ data World = World {
   , keyboardState :: KeyBoardState
 }
 
+blankWorld :: World
+blankWorld = World{
+    player        = mario (0,0)
+  , enemies       = []
+  , blocks        = []
+  , pickupObjects = []
+  , points        = 0
+  , timeLeft      = NA
+  , camera        = (0,0)
+  , gameState     = GoMode
+  , worldSize     = (0,0)
+  , keyboardState = KeyBoardState []
+}
+
 newtype KeyBoardState = KeyBoardState {
    keys         :: [Char]
 }
@@ -226,6 +278,12 @@ updateAnim dt _ a@(Animation {frames, frameLength, timer, index, loops})
   | timer + dt >= frameLength && loops = a{timer = timer + dt - frameLength, index = 0}
   | timer + dt >= frameLength = a{timer = frameLength}
   | otherwise = a{timer = timer + dt}
+
+getCenter :: CollisionObject a => a -> Point
+getCenter obj = getPos obj + (snd (getBB obj) * toPoint 0.5)
+
+getTopCenter :: CollisionObject a => a -> Point
+getTopCenter obj = getPos obj + (snd (getBB obj) * (0.5, 1))
 
 bottomRight :: BoundingBox -> (Float, Float)
 bottomRight (tl, size) = tl + size
@@ -278,6 +336,7 @@ instance CollisionObject Player where
   getCurrentAnimation p@(Player {movementState, animations, powerUpState}) =  animations !? (show movementState ++ show powerUpState)
   modCurrentAnimation p@(Player {movementState, animations, powerUpState}) dt =
     p { animations = Map.adjustWithKey (updateAnim dt) (show movementState ++ show powerUpState) animations }
+  
 
 instance Show Player where
   show p = show (concatMap show (animations p) )

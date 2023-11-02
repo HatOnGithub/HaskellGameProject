@@ -197,14 +197,13 @@ enemSpeed bTree eTree e | not (null collideBlocks && null collideEnemies) = setV
 worldCollision :: CollisionObject a => a -> QuadTree Block -> a
 worldCollision obj bTree = do
         let possiblePartners    = getCollisionPartners obj bTree
-        let collidableBlocks    = filter (obj `collidesWith`) possiblePartners
-        let sortedOnDistance    = sortBy (\ a b -> abs (bposition a - getPos obj) `compare` abs (bposition b - getPos obj)) collidableBlocks
-        let areUnderneath (x,y) = abs x > abs y && y <= 0
-        let areAbove (x,y)      = abs x > abs y && y > 0
-        let isGrounded          = any (areUnderneath . (obj `overlap`)) collidableBlocks
-        let hitCeiling          = any (areAbove . (obj `overlap`)) collidableBlocks
-        if hitCeiling && snd (getVel obj) >= 0 then groundState (correctPosition (setVel obj (getVel obj * (1,0))) sortedOnDistance) isGrounded
-        else groundState (correctPosition obj sortedOnDistance) isGrounded
+            collidableBlocks    = filter (obj `collidesWith`) possiblePartners
+            sortedOnDistance    = sortBy (\ a b -> abs (bposition a - getTopCenter obj) `compare` abs (bposition b - getTopCenter obj)) collidableBlocks
+            correctedObject     = correctPosition obj sortedOnDistance
+            isGrounded          = any (groundCheck correctedObject) collidableBlocks
+            hitCeiling          = any (headCheck   correctedObject) collidableBlocks
+        if hitCeiling && snd (getVel obj) >= 0 then groundState (setVel correctedObject (getVel correctedObject * (1,0))) isGrounded
+        else groundState correctedObject isGrounded
 
 -- since all objects are rectangular, use the smallest change in position to correct for a collision, 
 -- work through each collision in order of distance
@@ -213,3 +212,12 @@ correctPosition = foldl (\ obj x -> setPos obj (getPos obj - smallestChange (obj
     where smallestChange (x,y)  | abs x <  abs y = (x , 0)
                                 | abs x >= abs y = (0 , y)
 
+groundCheck :: CollisionObject a => a -> Block -> Bool
+groundCheck obj b = getBB b `intersects` groundBB
+    where groundBB = ((x + 0.02, y - 0.01), (w - 0.04, 0.01))
+          ((x,y), (w, _)) = getBB obj
+
+headCheck :: CollisionObject a => a -> Block -> Bool
+headCheck obj b = getBB b `intersects` groundBB
+    where groundBB = ((x + 0.02, h + y), (w - 0.04, 0.01))
+          ((x,y), (w, h)) = getBB obj
