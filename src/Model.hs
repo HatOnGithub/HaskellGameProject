@@ -166,7 +166,7 @@ goomba :: Point -> Enemy
 goomba pos = Enemy {
     ename           = "Goomba"
   , eposition       = pos
-  , evelocity       = (0,0)
+  , evelocity       = (7,0)
   , eanimations     = Map.empty
   , emovementState  = Standing
   , aIPattern       = Patrol

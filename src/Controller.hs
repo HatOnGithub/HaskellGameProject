@@ -7,6 +7,7 @@ import QuadTree
 import Data.List
 import Data.Map (Map, (!?), (!))
 import Data.Maybe
+import Control.Monad.RWS (All(getAll))
 
 
 step :: Map String (Map String Animation) -> Float -> World -> IO World
@@ -23,7 +24,7 @@ input (EventKey key Down _ _) w@( World { player, enemies }) = do
     let enemies' = enemies
     if isAlive player then
         case key of
-        (Char 'e') -> return w{enemies = goomba (5,5) : enemies}
+        (Char 'e') -> return w{enemies = goomba (8,5) : enemies}
 
         (Char 'w') -> tryJump w
         (Char 'a') -> if movementState player == Crouching then return w{player = player {velocity = velocity player + (-(mvmntVelocity / 2),  0)}}
@@ -138,7 +139,7 @@ applyGravity dt obj | not (isAlive obj)          = setVel obj (0,0)
                     | otherwise = obj
 
 processCollision ::  World -> World
-processCollision w@( World { player, enemies, blocks, pickupObjects, points }) = playerCollision bTree eTree pTree w
+processCollision w@( World { player, enemies, blocks, pickupObjects, points }) = (enemyCollision bTree eTree . playerCollision bTree eTree pTree) w
     where   bTree = buildQuadTree blocks        (worldSize w)
             eTree = buildQuadTree enemies       (worldSize w)
             pTree = buildQuadTree pickupObjects (worldSize w)
@@ -151,11 +152,28 @@ playerCollision bTree eTree pTree w@( World { player, enemies, blocks, points, w
     where np        = worldCollision player bTree
           (cx,cy)   = position np + boundingBoxS np * toPoint 0.5
 
-enemyCollision :: World -> World
-enemyCollision w@( World { player, enemies, blocks, points }) = w
+enemyCollision :: QuadTree Block -> QuadTree Enemy -> World -> World
+enemyCollision bTree eTree w@( World { player, enemies, blocks, points }) = w {
+    enemies =  map (\ e -> collideEnemy e bTree eTree) enemies
+    }
+
+
+
+collideEnemy :: Enemy -> QuadTree Block -> QuadTree Enemy -> Enemy
+collideEnemy enemy bTree eTree = enemSpeed collideBlocks collideEnemies (worldCollision enemy bTree)
     where
-        eTree = buildQuadTree enemies (worldSize w)
-        bTree = buildQuadTree blocks  (worldSize w)
+        (vX, _) = getVel enemy
+        ((x, y), (w, h)) = getBB enemy
+        collideBox | vX >= 0 =((x + w, y),(w, h))
+                    |vX < 0 = ((x - w, y), (w, h))
+        collideBlocks = getAllInArea collideBox bTree
+        collideEnemies = getAllInArea collideBox eTree
+
+enemSpeed :: [Block] -> [Enemy] -> Enemy -> Enemy
+enemSpeed [] [] enem = enem
+enemSpeed _ _ enem = setVel enem (getVel enem * (-1, 1) )
+
+
 
 worldCollision :: CollisionObject a => a -> QuadTree Block -> a
 worldCollision obj bTree = do

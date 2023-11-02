@@ -14,7 +14,9 @@ import Data.Maybe
 import GHC.Cmm (Width)
 
 animLocations :: [(String, String)]
-animLocations = [("Mario", "src\\Textures\\Mario"), ("Brick", "src\\Textures\\Blocks\\Brick")]
+animLocations = [("Mario", "src\\Textures\\Mario"), 
+                    ("Brick", "src\\Textures\\Blocks\\Brick")]
+                    
 
 main :: IO ()
 main = do
