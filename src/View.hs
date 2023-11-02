@@ -33,7 +33,7 @@ viewWorld w@(World {
         Prelude.map (getFrame camera) enemies ++
         Prelude.map (getFrame camera) blocks ++
         Prelude.map (getFrame camera) pickupObjects
-         ++[viewQT w]
+        -- ++[viewQT w] -- uncomment to view the quad tree
 
 getFrame :: CollisionObject a => Camera -> a -> Picture
 getFrame c obj  | isAlive obj = --getFrame' obj c (getCurrentAnimation obj) 

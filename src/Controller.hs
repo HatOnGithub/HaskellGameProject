@@ -174,7 +174,6 @@ enemyCollision bTree eTree w@( World { player, enemies, blocks, points }) = w {
     }
 
 
-
 collideEnemy :: Enemy -> QuadTree Block -> QuadTree Enemy -> Enemy
 collideEnemy enemy bTree eTree = 
     enemSpeed bTree eTree 
@@ -187,8 +186,8 @@ enemSpeed bTree eTree e | not (null collideBlocks && null collideEnemies) = setV
     where
         (vX, _) = getVel e
         ((x, y), (w, h)) = getBB e
-        collideBox  | vX >= 0 =((x + (w + 0.01), y + 0.01), (0.011, h - 0.02))
-                    | vX < 0 = ((x - (w + 0.021), y+ 0.01), (0.011, h - 0.02))
+        collideBox  | vX >= 0 =((x + (w + 0.001), y + 0.01), (0.0011, h - 0.02))
+                    | vX < 0 = ((x - 0.0021, y+ 0.01), (0.0011, h - 0.02))
         collideBlocks  = getAllInArea collideBox bTree
         collideEnemies = getAllInArea collideBox eTree
 

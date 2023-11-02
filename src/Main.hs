@@ -21,7 +21,7 @@ main = do
     anims <- animLocationToMap animLocations
     world <- loadLevelAt (snd ( head levels))
     playIO (InWindow "PringleMan dies from Heart Disease" (1024, 840) (0,0))
-            blue
+            (makeColorI 73 116 235 255)
             120
             world
             view
