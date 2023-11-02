@@ -14,9 +14,9 @@ import Data.Maybe
 import GHC.Cmm (Width)
 
 animLocations :: [(String, String)]
-animLocations = [("Mario", "src\\Textures\\Mario"), 
-                    ("Brick", "src\\Textures\\Blocks\\Brick")]
-                    
+animLocations = [
+      ("Mario", "src\\Textures\\Mario")
+    , ("Brick", "src\\Textures\\Blocks\\Brick")]
 
 main :: IO ()
 main = do
@@ -49,7 +49,7 @@ loadAnimation path = do
     let stripDir = last (splitOn "\\" path)
         [name,details] = splitOn "_" stripDir
         [strsheetDimensions, frameTime, looping] = splitOn "," details
-        sheetDimensions@[x,y] = map read (splitOn "x" strsheetDimensions) 
+        sheetDimensions@[x,y] = map read (splitOn "x" strsheetDimensions)
     frames <- loadSpriteSheet path (x,y)
     let anim = Animation {
         frames = frames,
@@ -72,13 +72,21 @@ loadSpriteSheet path ssDimensions= do
     return pics
 
 slice :: (Int, Int) -> (Int, Int) -> Picture -> [Picture]
-slice sheetDimensions@(rows, columns) bmpDimensions image = 
-    map scaleToWorld (sliceColumns columns image)
+slice sheetDimensions@(rows, columns) bmpDimensions image =
+    map (scaleToWorld . blShift )( concatMap ( sliceColumns columns) (sliceRows rows image))
+
+sliceRows :: Int -> Picture -> [Picture]
+sliceRows rs (Bitmap bitmapData) = map (\cNr -> bitmapSection (Rectangle (0, s * cNr) (w, s)) bitmapData) [0 .. rs - 1]
+    where   (w,h) = bitmapSize bitmapData
+            s     = h `div` rs
 
 sliceColumns :: Int  -> Picture -> [Picture]
-sliceColumns cs (Bitmap bmpD) = map (\cNr -> bitmapSection (Rectangle (s * cNr, 0) (s, h)) bmpD) [0 .. cs - 1]
-    where (w,h) = bitmapSize bmpD
-          s     = w `div` cs
+sliceColumns cs (BitmapSection (Rectangle (x,y) (w,h)) bmpD) = map (\cNr -> bitmapSection (Rectangle (x + s * cNr, y) (s, h)) bmpD) [0 .. cs - 1]
+    where s       = w `div` cs
+
+blShift :: Picture -> Picture
+blShift bms@(BitmapSection (Rectangle (x,y) (w,h)) bmpD) =
+    Translate (abs(fromIntegral (w - pixelsPerUnit)) / 2) (abs(fromIntegral (h - pixelsPerUnit)) / 2) bms
 
 scaleToWorld :: Picture -> Picture
 scaleToWorld = Translate 0.5 0.5 . Scale (1/fromIntegral pixelsPerUnit) (1/fromIntegral pixelsPerUnit)

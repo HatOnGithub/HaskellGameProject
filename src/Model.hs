@@ -12,16 +12,17 @@ import Data.Fixed (mod')
 
 initialState :: World
 initialState = World{
-  player = mario (10,2.8),
+  player = mario (11,2.8),
   enemies = [],
-  blocks = [brick (7,2), brick (8,2), brick (9,2), brick (10,2), brick (11,2),brick (9,2),brick (12,2),brick (12,3)
-           ,brick (13,2),brick (14,2),brick (15,2),brick (12,7)],
+  blocks = [brick (7,2), brick (8,2), brick (9,2), brick (10,2), brick (11,2),brick (9,2), brick (10,3)
+           ,brick (12,2),brick (12,3),brick (13,2),brick (14,2),brick (15,2),brick (12,7)],
   pickupObjects = [],
   timeLeft = NA,
   points = 0,
   camera = (10,10),
   gameState = GoMode,
-  worldSize = (20,20)}
+  worldSize = (32,32),
+  keyboardState = KeyBoardState []}
 
 missingTexture :: Picture
 missingTexture = Pictures [
@@ -43,21 +44,14 @@ mvmntVelocity :: Float
 mvmntVelocity = 10
 
 jumpVelocity :: Float
-jumpVelocity = 24
-
+jumpVelocity = 26
 
 worldScale :: Float
 -- zoom * sprite size
-worldScale = 2 * fromIntegral pixelsPerUnit
+worldScale = 3 * fromIntegral pixelsPerUnit
 
-instance Num (Float, Float) where
-  (+) (x1,y1) (x2,y2) = (x1 + x2, y1 + y2)
-  (-) (x1,y1) (x2,y2) = (x1 - x2, y1 - y2)
-  (*) (x1,y1) (x2,y2) = (x1 * x2, y1 * y2)
-  negate (x,y) = (-x,-y)
-  abs (x,y) = (abs x, abs y)
-  fromInteger n = (fromInteger n, fromInteger n)
-  signum = undefined
+bottomOfScreenClamp :: Float
+bottomOfScreenClamp = 6.55
 
 toPoint :: Num a => a -> (a,a)
 toPoint n = (n,n)
@@ -70,28 +64,20 @@ data GameState = GoMode | Pause
 
 data Animation = Animation { frames :: [Picture], frameLength :: Float, timer :: Float, index :: Int, loops :: Bool }
 
-instance Show Animation where
-  show a = show (length (frames a)) ++ " Frames, " ++ show (frameLength a) ++ " second Framelength, Time: " ++ show (timer a) ++ " , Index " ++ show (index a)
-
 type BoundingBox = (Point, Point)
 
 type Camera = Point
 
-data MovementState = Standing | Walking | Running | Jumping | Crouching | GroundedFiring | MidAirFiring
+data MovementState = Standing | Walking | Running | Jumping | Falling | Crouching | GroundedFiring | MidAirFiring
   deriving (Eq, Show)
 
-data PowerUpState = Small | Large | Fire | Starman Float
+data PowerUpState = Small | Large | Fire
   deriving (Eq, Show)
 
 data AIPattern = HopChase | Throw | Patrol | RunAway | Bowser
   deriving (Eq, Show)
 
 data BlockContents = Object PickupObject | Coin | Empty
-
-instance Show BlockContents where
-  show (Object _) = "Full"
-  show Coin       = "Full"
-  show Empty      = "Empty"
 
 
 data PickupType = Mushroom | FireFlower | Star
@@ -130,6 +116,7 @@ data Player = Player {
   , powerUpState  :: PowerUpState
   , boundingBoxS  :: Point
   , starMan       :: Bool
+  , starManTimer  :: Float
   , grounded      :: Bool
   , alive         :: Bool
   , isFacingLeft  :: Bool
@@ -141,9 +128,10 @@ mario pos = Player {
   , velocity      = (0,0)
   , animations    = Map.empty
   , movementState = Standing
-  , powerUpState  = Small
-  , boundingBoxS  = (1,1)
+  , powerUpState  = Large
+  , boundingBoxS  = (0.9,1)
   , starMan       = False
+  , starManTimer  = 0
   , grounded      = False
   , alive         = True
   , isFacingLeft  = False
@@ -170,7 +158,7 @@ goomba pos = Enemy {
   , eanimations     = Map.empty
   , emovementState  = Standing
   , aIPattern       = Patrol
-  , eboundingBoxS   = (1,1)
+  , eboundingBoxS   = (0.9,1)
   , egrounded       = False
   , ealive          = True
   , efacingLeft     = False }
@@ -198,9 +186,6 @@ popBlock :: Block -> (Block, BlockContents)
 popBlock b | show (item b) == "Full" = (b{item = Empty}, item b)
            | otherwise = (b, Empty)
 
-instance Show Block where
-  show b = "Block at" ++ show (bposition b)
-
 data PickupObject = PickupObject {
     poname          :: String
   , poposition      :: Point
@@ -222,6 +207,11 @@ data World = World {
   , camera        :: Camera
   , gameState     :: GameState
   , worldSize     :: Point
+  , keyboardState :: KeyBoardState
+}
+
+newtype KeyBoardState = KeyBoardState {
+   keys         :: [Char]
 }
 
 addPoints :: Int -> World -> World
@@ -251,12 +241,32 @@ clamp val minimum maximum = min maximum (max minimum val)
 
 -- for your own sanity, don't look down here
 
+-- General Instances
+instance Num (Float, Float) where
+  (+) (x1,y1) (x2,y2) = (x1 + x2, y1 + y2)
+  (-) (x1,y1) (x2,y2) = (x1 - x2, y1 - y2)
+  (*) (x1,y1) (x2,y2) = (x1 * x2, y1 * y2)
+  negate (x,y) = (-x,-y)
+  abs (x,y) = (abs x, abs y)
+  fromInteger n = (fromInteger n, fromInteger n)
+  signum = undefined
+
+instance Show BlockContents where
+  show (Object _) = "Full"
+  show Coin       = "Full"
+  show Empty      = "Empty"
+
+instance Show Animation where
+  show a = show (length (frames a)) ++ " Frames, " ++ show (frameLength a) ++ " second Framelength, Time: " ++ show (timer a) ++ " , Index " ++ show (index a)
+
 -- Player Instances
 instance CollisionObject Player where
   -- trivial stuff
-  getName _ = "Mario"; getBB p = (position p, boundingBoxS p); getVel = velocity; getPos = position; isAlive = alive; kill p = p {alive = False}; facingLeft = isFacingLeft; faceLeft p b = p {isFacingLeft = b}
+  getName _ = "Mario";  getVel = velocity; getPos = position; isAlive = alive; kill p = p {alive = False}; facingLeft = isFacingLeft; faceLeft p b = p {isFacingLeft = b}
   setInternalState p newState= p {movementState = newState}; groundState p b = p {grounded = b}; isGrounded = grounded; getInternalState = movementState
   -- bit more complicated stuff
+  getBB p | movementState p /= Crouching && powerUpState p /= Small  = (position p + (0.05, 0), (0.9,2))
+          | otherwise = (position p + (0.05, 0), (0.9,1))
   setBBSize p@(Player {boundingBoxS}) newBBSize = p {boundingBoxS = newBBSize}
   setVel p@(Player {velocity}) newVelocity = p {velocity = newVelocity}
   setPos p@(Player {position}) newPos = p {position = newPos}
@@ -272,7 +282,7 @@ instance Show Player where
 -- Enemy Instances
 instance CollisionObject Enemy where
   -- trivial stuff
-  getName = ename ; getBB e = (eposition e, eboundingBoxS e);getVel = evelocity;getPos = eposition ; isAlive = ealive ; getInternalState = emovementState
+  getName = ename ; getBB e = (eposition e + (0.05, 0), eboundingBoxS e);getVel = evelocity;getPos = eposition ; isAlive = ealive ; getInternalState = emovementState
   isGrounded = egrounded; groundState e b = e{egrounded = b}; setInternalState e newState= e {emovementState = newState};  kill e = e {ealive = False}
   facingLeft = efacingLeft; faceLeft p b = p{efacingLeft = b}
   -- bit more complicated stuff
@@ -309,10 +319,13 @@ instance CollisionObject Block where
 instance Eq Block where
   (==) b1 b2 = bposition b1 == bposition b2
 
+instance Show Block where
+  show b = "Block at" ++ show (bposition b)
+
 -- PickupObject Instances
 instance CollisionObject PickupObject where
   -- trivial stuff
-  getName = poname; getBB po = (poposition po, poboundingBoxS po); getVel = povelocity;getPos = poposition; getInternalState _ = Walking
+  getName = poname; getBB po = (poposition po + (0.05,0), poboundingBoxS po); getVel = povelocity;getPos = poposition; getInternalState _ = Walking
   isGrounded = pogrounded ; setInternalState po _ = po ;  isAlive = poalive ;  groundState po b = po{pogrounded = b} ; kill po = po {poalive = False}
   facingLeft _ = False; faceLeft po _ = po
   -- bit more complicated stuff

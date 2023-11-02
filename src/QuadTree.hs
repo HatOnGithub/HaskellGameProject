@@ -27,7 +27,7 @@ getCollisionPartners obj n@(Node bb objs tl tr bl br )
 getAllInArea ::  (CollisionObject b) => BoundingBox -> QuadTree b -> [b]
 getAllInArea _ EmptyLeaf = []
 getAllInArea area n@(Node bb objs tl tr bl br )
-    | area `intersects` bb  = filter (\obj -> bb `intersects` getBB obj) objs ++ concatMap (getAllInArea area) [tl,tr,bl,br]
+    | area `intersects` bb  = filter (\obj -> area `intersects` getBB obj) objs ++ concatMap (getAllInArea area) [tl,tr,bl,br]
     | otherwise             = []
 
 buildQuadTree :: (CollisionObject a, Eq a) => [a] -> Point -> QuadTree a
