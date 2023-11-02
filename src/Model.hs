@@ -35,7 +35,7 @@ movementModifier :: Float
 movementModifier = 1
 
 worldSpeed :: Float
-worldSpeed = 0.25
+worldSpeed = 1
 
 gravity :: (Float, Float)
 gravity = (0, -60)
@@ -131,7 +131,7 @@ mario pos = Player {
   , velocity      = (0,0)
   , animations    = Map.empty
   , movementState = Standing
-  , powerUpState  = Large
+  , powerUpState  = Fire
   , boundingBoxS  = (0.9,1)
   , starMan       = False
   , starManTimer  = 0

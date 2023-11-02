@@ -187,8 +187,8 @@ enemSpeed bTree eTree e | not (null collideBlocks && null collideEnemies) = setV
     where
         (vX, _) = getVel e
         ((x, y), (w, h)) = getBB e
-        collideBox  | vX >= 0 =((x + (w + 0.01), y + 0.1),(0.011, h))
-                    | vX < 0 = ((x - (w + 0.021), y+ 0.1), (0.011, h))
+        collideBox  | vX >= 0 =((x + (w + 0.01), y + 0.01), (0.011, h - 0.02))
+                    | vX < 0 = ((x - (w + 0.021), y+ 0.01), (0.011, h - 0.02))
         collideBlocks  = getAllInArea collideBox bTree
         collideEnemies = getAllInArea collideBox eTree
 
