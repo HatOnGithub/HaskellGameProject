@@ -74,6 +74,8 @@ updateTimes dt w@( World { player, enemies, blocks, pickupObjects, timeLeft }) =
 processInputs :: World -> World
 processInputs w@(World {player, keyboardState = kbs@(KeyBoardState inputs)}) =  w {player = inputResult player inputs}
 
+
+-- Last In First Out, last inputs get priority over previous held inputs
 inputResult :: Player -> [Char] -> Player
 inputResult p []      = p {velocity = velocity p * (0,1)}
 inputResult p keys@(k:ks)
@@ -89,8 +91,10 @@ inputResult p keys@(k:ks)
                             = player {velocity = (fst (velocity player), jumpVelocity), grounded = False, movementState = Jumping}
                         | otherwise         = player
         tryCrouch player| isGrounded player = player {velocity = (0, -0.5), movementState = Crouching}
-                        | otherwise         = player {movementState = Standing}
-        addHorizontalVelocity amount player = player {velocity = velocity player + (amount, 0)}
+                        | otherwise         = player 
+        addHorizontalVelocity amount player = player {velocity = velocity player + (amount, 0), movementState = crouchCancelCheck}
+        crouchCancelCheck   | movementState p == Crouching = Standing -- cancels out the crouch
+                            | otherwise                    = movementState p
 
 
 updateMovementStates :: World -> World
