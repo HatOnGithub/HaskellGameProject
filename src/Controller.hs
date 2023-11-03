@@ -166,7 +166,7 @@ processCollision w@( World { player, enemies, blocks, pickupObjects, points }) =
 playerCollision :: QuadTree Block -> QuadTree Enemy -> QuadTree PickupObject -> World -> World
 playerCollision bTree eTree pTree w@( World { player, enemies, blocks, points, worldSize, timeLeft }) = w {
         player = if snd (getPos player) >= -5 && timeLeft > Secs 0 then np else kill player
-    ,   camera = bimap (clamp cx leftOfScreenClamp) (clamp cy bottomOfScreenClamp) worldSize
+    ,   camera = (clamp cx leftOfScreenClamp (fst worldSize - leftOfScreenClamp - 1), clamp cy bottomOfScreenClamp (snd worldSize))
     ,   blocks = map (testPop np reachableBlocks) blocks
     }
     where np        = worldCollision player bTree
