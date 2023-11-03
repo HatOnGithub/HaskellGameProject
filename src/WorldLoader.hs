@@ -29,8 +29,8 @@ startsWith (x:xs) (y:ys) | x == y    = startsWith xs ys
 
 parseWorld :: World -> Int -> Int -> [String] -> World
 parseWorld w _ _ [] = w
-parseWorld world w 1 [last] = parseString world w 1 last
-parseWorld world w h (l:ls) = parseWorld (parseString world w h l) 0 (h - 1) ls
+parseWorld world w 0 [last] = parseString world w 0 last
+parseWorld world w h (l:ls) = parseWorld (parseString world w (h - 1) l) 0 (h - 1) ls
 
 parseString :: World -> Int -> Int -> String -> World
 parseString w _ _ [] = w
@@ -48,16 +48,18 @@ parseChar world w h c = case c of
     'm' -> world {player = mario pos}
     
     -- blocks
-    'G' -> world {blocks = stone  pos       : blocks world}
-    'H' -> world {blocks = block  pos       : blocks world}
-    'B' -> world {blocks = brick  pos Empty : blocks world}
-    'Q' -> world {blocks = qBlock pos Empty : blocks world}
+    'G' -> world {blocks = grass  pos           : blocks world}
+    'D' -> world {blocks = dirt   pos           : blocks world}
+    'H' -> world {blocks = block  pos           : blocks world}
+    'B' -> world {blocks = brick  pos           : blocks world}
+    'Q' -> world {blocks = qBlock pos (Coin 1)  : blocks world}
     -- special blocks
-    '1' -> world {blocks = brick  pos Coin  : blocks world}
+    '1' -> world {blocks = fakeBrick  pos (Coin 10)     : blocks world}
     '2' -> world {blocks = qBlock pos (Object Mushroom) : blocks world}
-    '3' -> world {blocks = brick  pos (Object Star)     : blocks world}
+    '3' -> world {blocks = fakeBrick  pos (Object Star) : blocks world}
     '#' -> world {blocks = castle pos : blocks world}
     '|' -> world {blocks = pole   pos : blocks world}
+    '<' -> world {blocks = flag   pos : blocks world}
 
     -- enemies
     'g' -> world {enemies = goomba pos : enemies world}

@@ -8,6 +8,7 @@ import Data.List
 import Data.Map (Map, (!?), (!))
 import Data.Maybe
 import Data.Char (toUpper, toLower)
+import Data.Bifunctor
 
 movementKeys :: [Char]
 movementKeys =  [ 'w', 'W'
@@ -15,13 +16,14 @@ movementKeys =  [ 'w', 'W'
                 , 's', 'S'
                 , 'd', 'D' ]
 
+
 step :: Map String (Map String Animation) -> Float -> World -> IO World
 step m rawdt w  | gameState w == GoMode = (return  . assignAnimations m . stepPure dt) w
                 | otherwise             = return w
         where dt = rawdt * worldSpeed
 
 stepPure ::  Float -> World -> World
-stepPure dt w | gameState w == GoMode = ( updateTimes dt . processCollision . processGravity dt . processVectors dt . processInputs . updateMovementStates ) w
+stepPure dt w | gameState w == GoMode = ( updateTimes dt . cullDeadObjects . processCollision . processGravity dt . processVectors dt . processInputs . updateMovementStates ) w
               | otherwise             =  w
 
 input :: Event -> World -> IO World
@@ -63,6 +65,7 @@ tryAssign map obj
   | isJust (map !? getName obj ) = setAnimations obj (map ! getName obj)
   | otherwise                    = obj
 
+
 updateTimes :: Float -> World -> World
 updateTimes dt w@( World { player, enemies, blocks, pickupObjects, timeLeft }) = w{
       player        = modCurrentAnimation player dt
@@ -92,7 +95,7 @@ inputResult p keys@(k:ks)
                             = player {velocity = (fst (velocity player), jumpVelocity), grounded = False, movementState = Jumping}
                         | otherwise         = player
         tryCrouch player| isGrounded player = player {velocity = (0, -0.5), movementState = Crouching}
-                        | otherwise         = player 
+                        | otherwise         = player
         addHorizontalVelocity amount player = player {velocity = velocity player + (amount, 0), movementState = crouchCancelCheck}
         crouchCancelCheck   | movementState p == Crouching = Standing -- cancels out the crouch
                             | otherwise                    = movementState p
@@ -116,7 +119,7 @@ updateMovementState a = do
         else if  x /= 0 && abs x <  mvmntVelocity * 1.5      then setInternalState obj Walking
         else if  x /= 0 && abs x >= mvmntVelocity * 1.5      then setInternalState obj Running
         else obj
-    else if getInternalState obj /= MidAirFiring then 
+    else if getInternalState obj /= MidAirFiring then
         if y > 0 then setInternalState obj Jumping
         else setInternalState obj Falling
     else obj
@@ -161,12 +164,14 @@ processCollision w@( World { player, enemies, blocks, pickupObjects, points }) =
             pTree = buildQuadTree pickupObjects (worldSize w)
 
 playerCollision :: QuadTree Block -> QuadTree Enemy -> QuadTree PickupObject -> World -> World
-playerCollision bTree eTree pTree w@( World { player, enemies, blocks, points, worldSize }) = w {
-        player = if snd (getPos player) >= -5 then np else kill player
-    ,   camera = (cx, clamp cy bottomOfScreenClamp (snd worldSize))
+playerCollision bTree eTree pTree w@( World { player, enemies, blocks, points, worldSize, timeLeft }) = w {
+        player = if snd (getPos player) >= -5 && timeLeft > Secs 0 then np else kill player
+    ,   camera = bimap (clamp cx leftOfScreenClamp) (clamp cy bottomOfScreenClamp) worldSize
+    ,   blocks = map (testPop np reachableBlocks) blocks
     }
     where np        = worldCollision player bTree
-          (cx,cy)   = position np + boundingBoxS np * toPoint 0.5
+          (cx,cy)   = getCenter np
+          reachableBlocks = getCollisionPartners np bTree
 
 enemyCollision :: QuadTree Block -> QuadTree Enemy -> World -> World
 enemyCollision bTree eTree w@( World { player, enemies, blocks, points }) = w {
@@ -175,8 +180,8 @@ enemyCollision bTree eTree w@( World { player, enemies, blocks, points }) = w {
 
 
 collideEnemy :: Enemy -> QuadTree Block -> QuadTree Enemy -> Enemy
-collideEnemy enemy bTree eTree = 
-    enemSpeed bTree eTree 
+collideEnemy enemy bTree eTree =
+    enemSpeed bTree eTree
     (worldCollision enemy bTree)
 
 
@@ -191,7 +196,9 @@ enemSpeed bTree eTree e | not (null collideBlocks && null collideEnemies) = setV
         collideBlocks  = getAllInArea collideBox bTree
         collideEnemies = getAllInArea collideBox eTree
 
-
+testPop :: Player -> [Block] -> Block -> Block
+testPop p reachable b   | b `elem` reachable && headCheck p b = b {exists = False}
+                        | otherwise     = b
 
 worldCollision :: CollisionObject a => a -> QuadTree Block -> a
 worldCollision obj bTree = do
@@ -220,3 +227,6 @@ headCheck :: CollisionObject a => a -> Block -> Bool
 headCheck obj b = getBB b `intersects` groundBB
     where groundBB = ((x + 0.02, h + y), (w - 0.04, 0.01))
           ((x,y), (w, h)) = getBB obj
+
+cullDeadObjects :: World -> World
+cullDeadObjects w@( World { enemies, blocks }) = w { enemies = filter isAlive enemies, blocks = filter isAlive blocks }

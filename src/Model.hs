@@ -2,7 +2,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 
 module Model where
-import Data.Char (GeneralCategory(PrivateUse))
 import Data.Map (Map, (!?), size)
 import qualified Data.Map as Map
 import Graphics.Gloss (Picture, Point, Vector)
@@ -10,29 +9,8 @@ import Graphics.Gloss.Data.Picture
 import Graphics.Gloss.Data.Color
 import Data.Fixed (mod')
 
-initialState :: World
-initialState = World{
-  player = mario (11,2.8),
-  enemies = [],
-  blocks = [brick (7,2) Empty, brick (8,2) Empty, brick (9,2) Empty, brick (10,2) Empty, brick (11,2) Empty,brick (9,2) Empty, brick (10,3) Empty
-           ,brick (12,2) Empty,brick (12,3) Empty,brick (13,2) Empty,brick (14,2) Empty,brick (15,2) Empty,brick (12,7) Empty],
-  pickupObjects = [],
-  timeLeft = NA,
-  points = 0,
-  camera = (10,10),
-  gameState = GoMode,
-  worldSize = (32,32),
-  keyboardState = KeyBoardState []}
-
-missingTexture :: Picture
-missingTexture = Pictures [
-    Color magenta   (Polygon [(0,0), (0,0.5), (0.5,0.5), (0.5,0)]),
-    Color black     (Polygon [(0.5,0), (0.5,0.5), (1,0.5), (1,0)]),
-    Color magenta   (Polygon [(0.5,0.5), (0.5,1), (1,1), (1,0.5)]),
-    Color black     (Polygon [(0,0.5), (0,1), (0.5,1), (0.5,0.5)])]
-
-movementModifier :: Float
-movementModifier = 1
+screenSize :: (Int, Int)
+screenSize = (1024, 840)
 
 worldSpeed :: Float
 worldSpeed = 1
@@ -50,17 +28,57 @@ jumpVelocity :: Float
 jumpVelocity = 26
 
 worldScale :: Float
--- zoom * sprite size
 worldScale = 3 * fromIntegral pixelsPerUnit
 
 bottomOfScreenClamp :: Float
-bottomOfScreenClamp = 6.55
+bottomOfScreenClamp = fromIntegral (snd screenSize) / (worldScale * 2)
+
+leftOfScreenClamp :: Float
+leftOfScreenClamp = fromIntegral (fst screenSize) / (worldScale * 2)
 
 toPoint :: Num a => a -> (a,a)
 toPoint n = (n,n)
 
+addPoints :: Int -> World -> World
+addPoints n w@(World {points}) = w{points = points + n}
+
+getCenter :: CollisionObject a => a -> Point
+getCenter obj = getPos obj + (snd (getBB obj) * toPoint 0.5)
+
+getTopCenter :: CollisionObject a => a -> Point
+getTopCenter obj = getPos obj + (snd (getBB obj) * (0.5, 1))
+
+bottomRight :: BoundingBox -> (Float, Float)
+bottomRight (tl, size) = tl + size
+
+topRight :: BoundingBox -> (Float, Float)
+topRight ((x1, y1), (x2, _)) = (x1 + x2, y1)
+
+bottomLeft :: BoundingBox -> (Float, Float)
+bottomLeft ((x1, y1), (_, y2)) = (x1, y1 + y2)
+
+topLeft :: BoundingBox -> (Float, Float)
+topLeft (tl, _) = tl
+
+clamp :: (Ord a) => a -> a -> a -> a
+clamp val minimum maximum = min maximum (max minimum val)
+
+missingTexture :: Picture
+missingTexture = Pictures [
+    Color magenta   (Polygon [(0,0), (0,0.5), (0.5,0.5), (0.5,0)]),
+    Color black     (Polygon [(0.5,0), (0.5,0.5), (1,0.5), (1,0)]),
+    Color magenta   (Polygon [(0.5,0.5), (0.5,1), (1,1), (1,0.5)]),
+    Color black     (Polygon [(0,0.5), (0,1), (0.5,1), (0.5,0.5)])]
+
+updateAnim :: Float -> String -> Animation -> Animation
+updateAnim dt _ a@(Animation {frames, frameLength, timer, index, loops})
+  | timer + dt >= frameLength && index < length frames - 1 = a{timer = timer + dt - frameLength, index = index + 1}
+  | timer + dt >= frameLength && loops = a{timer = timer + dt - frameLength, index = 0}
+  | timer + dt >= frameLength = a{timer = frameLength}
+  | otherwise = a{timer = timer + dt}
+
 data Time = Secs Float | NA
-  deriving (Eq)
+  deriving (Eq, Ord)
 
 data GameState = GoMode | Pause
   deriving (Eq)
@@ -74,13 +92,16 @@ type Camera = Point
 data MovementState = Standing | Walking | Running | Jumping | Falling | Crouching | GroundedFiring | MidAirFiring
   deriving (Eq, Show)
 
+data WorldType = Overworld | Underground | Sky
+  deriving (Eq, Show)
+
 data PowerUpState = Small | Large | Fire
   deriving (Eq, Show)
 
-data AIPattern = HopChase | Throw | Patrol | RunAway | Bowser
+data AIPattern = Inactive | HopChase | Throw | Patrol | RunAway | Bowser
   deriving (Eq, Show)
 
-data BlockContents = Object PickupType | Coin | Empty
+data BlockContents = Object PickupType | Coin Float | Empty
 
 data PickupType = Mushroom | FireFlower | Star
   deriving (Eq, Show)
@@ -145,6 +166,7 @@ data Enemy = Enemy {
   , evelocity       :: Vector
   , eanimations     :: Map String Animation
   , emovementState  :: MovementState
+  , currentPattern  :: AIPattern
   , aIPattern       :: AIPattern
   , eboundingBoxS   :: Point
   , egrounded       :: Bool
@@ -152,13 +174,14 @@ data Enemy = Enemy {
   , efacingLeft     :: Bool
 }
 -- DO NOT INSTANTIATE AS IS, IS TEMPLATE
-basicEnemy :: Enemy 
+basicEnemy :: Enemy
 basicEnemy = Enemy {
     ename           = ""
   , eposition       = (0,0)
   , evelocity       = (-mvmntVelocity,0)
   , eanimations     = Map.empty
   , emovementState  = Standing
+  , currentPattern  = Inactive
   , aIPattern       = Patrol
   , eboundingBoxS   = (0.9,1)
   , egrounded       = False
@@ -166,7 +189,7 @@ basicEnemy = Enemy {
   , efacingLeft     = False }
 
 goomba :: Point -> Enemy
-goomba pos = basicEnemy { ename = "Goomba" , eposition = pos }
+goomba pos = basicEnemy { ename = "Goomba" , eposition = pos}
 
 koopa :: Point -> Enemy
 koopa pos = basicEnemy { ename = "Koopa" , eposition = pos }
@@ -193,35 +216,38 @@ basicBlock = Block{
 stone :: Point -> Block
 stone pos = basicBlock {bname = "Stone", bposition = pos}
 
-brick :: Point -> BlockContents -> Block
-brick pos item = basicBlock{ bname = "Brick" , bposition = pos, item = item}
+grass :: Point -> Block
+grass pos = basicBlock {bname = "Grass", bposition = pos}
+
+dirt :: Point -> Block
+dirt pos = basicBlock {bname = "Dirt", bposition = pos}
+
+brick :: Point -> Block
+brick pos  = basicBlock{ bname = "Brick" , bposition = pos}
+
+fakeBrick :: Point -> BlockContents -> Block
+fakeBrick pos item = basicBlock{ bname = "FakeBrick" , bposition = pos, item = item}
 
 block :: Point -> Block
 block pos = basicBlock {bname = "Block", bposition = pos}
 
 qBlock :: Point -> BlockContents -> Block
-qBlock pos item = basicBlock {bname = "QuestionBlock", bposition = pos, item = item }
+qBlock pos item = basicBlock {bname = "QBlock", bposition = pos, item = item }
 
 pipe :: Point -> Int -> Block
-pipe pos length = basicBlock {
-    bname           = "Pipe"
-  , bposition       = pos
-  , bboundingBoxS   = (2,fromIntegral length)
-}
+pipe pos length = basicBlock  { bname = "Pipe", bposition = pos
+                              , bboundingBoxS   = (2,fromIntegral length)}
 
 castle :: Point -> Block
-castle pos = basicBlock {
-    bname         = "Castle"
-  , bposition     = pos
-  , bboundingBoxS = (5,5)
-}
+castle pos = basicBlock { bname = "Castle", bposition = pos
+                        , bboundingBoxS = (5,5)}
 
 pole :: Point -> Block
-pole pos = basicBlock {
-    bname         = "pole"
-  , bposition     = pos + (0.4, 0)
-  , bboundingBoxS = (0.2, 1)
-}
+pole pos = basicBlock { bname = "Pole", bposition = pos + (0.3, 0)
+                      , bboundingBoxS = (0.4, 1) }
+
+flag :: Point -> Block
+flag pos = basicBlock { bname = "Flag", bposition = pos + (0.3, 0)}
 
 popBlock :: Block -> (Block, BlockContents)
 popBlock b | show (item b) == "Full" = (b{item = Empty}, item b)
@@ -249,6 +275,7 @@ data World = World {
   , gameState     :: GameState
   , worldSize     :: Point
   , keyboardState :: KeyBoardState
+  , worldType     :: WorldType
 }
 
 blankWorld :: World
@@ -263,44 +290,39 @@ blankWorld = World{
   , gameState     = GoMode
   , worldSize     = (0,0)
   , keyboardState = KeyBoardState []
+  , worldType     = Overworld
 }
 
-newtype KeyBoardState = KeyBoardState {
-   keys         :: [Char]
-}
+newtype KeyBoardState = KeyBoardState { keys :: [Char] }
 
-addPoints :: Int -> World -> World
-addPoints n w@(World {points}) = w{points = points + n}
 
-updateAnim :: Float -> String -> Animation -> Animation
-updateAnim dt _ a@(Animation {frames, frameLength, timer, index, loops})
-  | timer + dt >= frameLength && index < length frames - 1 = a{timer = timer + dt - frameLength, index = index + 1}
-  | timer + dt >= frameLength && loops = a{timer = timer + dt - frameLength, index = 0}
-  | timer + dt >= frameLength = a{timer = frameLength}
-  | otherwise = a{timer = timer + dt}
+-- turn back, ye who wish for thy sanity, for yonder thou'd'st find the land of Instance Declarations
 
-getCenter :: CollisionObject a => a -> Point
-getCenter obj = getPos obj + (snd (getBB obj) * toPoint 0.5)
 
-getTopCenter :: CollisionObject a => a -> Point
-getTopCenter obj = getPos obj + (snd (getBB obj) * (0.5, 1))
 
-bottomRight :: BoundingBox -> (Float, Float)
-bottomRight (tl, size) = tl + size
 
-topRight :: BoundingBox -> (Float, Float)
-topRight ((x1, y1), (x2, _)) = (x1 + x2, y1)
 
-bottomLeft :: BoundingBox -> (Float, Float)
-bottomLeft ((x1, y1), (_, y2)) = (x1, y1 + y2)
 
-topLeft :: BoundingBox -> (Float, Float)
-topLeft (tl, _) = tl
 
-clamp :: (Ord a) => a -> a -> a -> a
-clamp val minimum maximum = min maximum (max minimum val)
 
--- for your own sanity, don't look down here
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 -- General Instances
 instance Num (Float, Float) where
@@ -314,11 +336,15 @@ instance Num (Float, Float) where
 
 instance Show BlockContents where
   show (Object _) = "Full"
-  show Coin       = "Full"
+  show (Coin _)   = "Full"
   show Empty      = "Empty"
 
 instance Show Animation where
   show a = show (length (frames a)) ++ " Frames, " ++ show (frameLength a) ++ " second Framelength, Time: " ++ show (timer a) ++ " , Index " ++ show (index a)
+
+instance Show Time where
+  show (Secs f) = show (round f)
+  show NA       = "NA"
 
 -- Player Instances
 instance CollisionObject Player where
@@ -336,7 +362,6 @@ instance CollisionObject Player where
   getCurrentAnimation p@(Player {movementState, animations, powerUpState}) =  animations !? (show movementState ++ show powerUpState)
   modCurrentAnimation p@(Player {movementState, animations, powerUpState}) dt =
     p { animations = Map.adjustWithKey (updateAnim dt) (show movementState ++ show powerUpState) animations }
-  
 
 instance Show Player where
   show p = show (concatMap show (animations p) )

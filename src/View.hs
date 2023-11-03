@@ -2,18 +2,17 @@
 module View where
 import Graphics.Gloss
 import Model
-import Data.Map hiding (map)
-import qualified Data.Map as Map
+import Data.Map hiding (filter, map)
+import qualified Data.Map as Map hiding (filter)
 import Data.Maybe (isJust)
 import Prelude hiding (flip)
 import QuadTree
 
 -- oooooh scary IO
 view ::  World -> IO Picture
-view  w = do
-    let pics = reverse (viewPure w)
-    return (Pictures pics)
-
+view w = do
+    let pics = reverse ( viewPure w)
+    return (Pictures pics )
 
 -- safe pure stuff
 viewPure :: World -> [Picture]
@@ -22,25 +21,30 @@ viewPure w = viewUI w ++ viewWorld w
 viewUI :: World -> [Picture]
 viewUI w@(World {
     player, enemies, blocks, pickupObjects, points,
-    timeLeft, camera, gameState, worldSize}) =
-        if isAlive player then [Blank] else [Translate (-120) 5 (Scale 0.5 0.5 (Text "Skill Issue"))]
+    timeLeft, camera, gameState, worldSize}) 
+    | isAlive player = [Color white (Translate (-500) 380 (Scale 0.2 0.2 (Text ("Time until Heart Failure: " ++ show timeLeft))))]
+    | otherwise      = [Color white (Translate (-355) 5 (Scale 0.5 0.5 (Text "Died from Heart Attack")))]
 
 viewWorld :: World -> [Picture]
 viewWorld w@(World {
     player, enemies, blocks, pickupObjects, points,
     timeLeft, camera, gameState, worldSize}) =
         getFrame camera player  :
-        Prelude.map (getFrame camera) enemies ++
-        Prelude.map (getFrame camera) blocks ++
-        Prelude.map (getFrame camera) pickupObjects
+        map (getFrame camera) enemies ++
+        map (getFrame camera) pickupObjects ++
+        map (getFrame camera) blocks ++
+        map (getFrame camera) pipes
         -- ++[viewQT w] -- uncomment to view the quad tree
+    where nblocks = filter (\b -> getName b /= "Pipe") blocks
+          pipes   = filter (\b -> getName b == "Pipe") blocks
 
 getFrame :: CollisionObject a => Camera -> a -> Picture
 getFrame c obj  | isAlive obj = --getFrame' obj c (getCurrentAnimation obj) 
                                 if facingLeft obj then worldToScreen (flip (getFrame' obj c (getCurrentAnimation obj)))
                                 else worldToScreen (getFrame' obj c (getCurrentAnimation obj))
                 | otherwise   = Blank
-    where worldToScreen = Scale worldScale worldScale . uncurry Translate (getPos obj - c)
+    where worldToScreen | getName obj /= "Pipe" = Scale worldScale worldScale . uncurry Translate (getPos obj - c)
+                        | otherwise             = Scale worldScale worldScale . uncurry Translate (getPos obj - c - (0, 8 - snd (snd (getBB obj))))
 
 flip :: Picture -> Picture
 flip = Translate 1 0 . Scale (-1) 1
@@ -48,7 +52,7 @@ flip = Translate 1 0 . Scale (-1) 1
 getFrame' :: CollisionObject a => a -> Camera -> Maybe Animation -> Picture
 getFrame' obj c (Just a) =  frames a !! index a
 getFrame' obj c Nothing  =  Scale x y missingTexture
-    where (_, (x,y))    = getBB obj
+    where (_, (x,y))     = getBB obj
 
 
 -- no longer used, took too much effort to throw away
