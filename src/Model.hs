@@ -12,6 +12,9 @@ import Data.Fixed (mod')
 screenSize :: (Int, Int)
 screenSize = (1024, 840)
 
+screenSizeWorld :: (Float, Float)
+screenSizeWorld = (fromIntegral (fst screenSize) / worldScale, fromIntegral (snd screenSize) / worldScale)
+
 worldSpeed :: Float
 worldSpeed = 1
 
@@ -23,6 +26,9 @@ pixelsPerUnit = 16
 
 mvmntVelocity :: Float
 mvmntVelocity = 5
+
+runModifier :: Float
+runModifier = 1.5
 
 jumpVelocity :: Float
 jumpVelocity = 26
@@ -61,7 +67,7 @@ topLeft :: BoundingBox -> (Float, Float)
 topLeft (tl, _) = tl
 
 clamp :: (Ord a) => a -> a -> a -> a
-clamp val minimum maximum = min maximum (max minimum val)
+clamp val mn mx = min mx (max mn val)
 
 missingTexture :: Picture
 missingTexture = Pictures [
@@ -128,7 +134,8 @@ class CollisionObject a where
   kill                :: a -> a
   facingLeft          :: a -> Bool
   faceLeft            :: a -> Bool -> a
-
+  hasGravity          :: a -> Bool
+  hasCollision        :: a -> Bool
 
 
 data Player = Player {
@@ -143,6 +150,7 @@ data Player = Player {
   , grounded      :: Bool
   , alive         :: Bool
   , isFacingLeft  :: Bool
+  , collision  :: Bool
 }
 
 mario :: Point -> Player
@@ -158,6 +166,7 @@ mario pos = Player {
   , grounded      = False
   , alive         = True
   , isFacingLeft  = False
+  , collision  = True
   }
 
 data Enemy = Enemy {
@@ -201,6 +210,8 @@ data Block = Block {
   , textures        :: Map String Animation
   , bboundingBoxS   :: Point
   , exists          :: Bool
+, bCollision        :: Bool
+  , poppable        :: Bool
 }
 
 basicBlock :: Block
@@ -211,6 +222,8 @@ basicBlock = Block{
   , textures        = Map.empty
   , bboundingBoxS   = (1,1)
   , exists          = True
+  , bCollision      = True
+  , poppable        = False
 }
 
 stone :: Point -> Block
@@ -223,16 +236,16 @@ dirt :: Point -> Block
 dirt pos = basicBlock {bname = "Dirt", bposition = pos}
 
 brick :: Point -> Block
-brick pos  = basicBlock{ bname = "Brick" , bposition = pos}
+brick pos  = basicBlock{ bname = "Brick" , bposition = pos, poppable = True}
 
 fakeBrick :: Point -> BlockContents -> Block
-fakeBrick pos item = basicBlock{ bname = "FakeBrick" , bposition = pos, item = item}
+fakeBrick pos item = basicBlock{ bname = "FakeBrick" , bposition = pos, item = item, poppable = True}
 
 block :: Point -> Block
 block pos = basicBlock {bname = "Block", bposition = pos}
 
 qBlock :: Point -> BlockContents -> Block
-qBlock pos item = basicBlock {bname = "QBlock", bposition = pos, item = item }
+qBlock pos item = basicBlock {bname = "QBlock", bposition = pos, item = item , poppable = True }
 
 pipe :: Point -> Int -> Block
 pipe pos length = basicBlock  { bname = "Pipe", bposition = pos
@@ -243,15 +256,13 @@ castle pos = basicBlock { bname = "Castle", bposition = pos
                         , bboundingBoxS = (5,5)}
 
 pole :: Point -> Block
-pole pos = basicBlock { bname = "Pole", bposition = pos + (0.3, 0)
+pole pos = basicBlock { bname = "Pole", bposition = pos + (0.35, 0)
                       , bboundingBoxS = (0.4, 1) }
 
 flag :: Point -> Block
-flag pos = basicBlock { bname = "Flag", bposition = pos + (0.3, 0)}
+flag pos = basicBlock { bname = "Flag", bposition = pos + (0.35, 0), bCollision = False}
 
-popBlock :: Block -> (Block, BlockContents)
-popBlock b | show (item b) == "Full" = (b{item = Empty}, item b)
-           | otherwise = (b, Empty)
+
 
 data PickupObject = PickupObject {
     poname          :: String
@@ -262,6 +273,7 @@ data PickupObject = PickupObject {
   , poboundingBoxS  :: Point
   , pogrounded      :: Bool
   , poalive         :: Bool
+  , pogravity       :: Bool
 }
 
 data World = World {
@@ -275,7 +287,7 @@ data World = World {
   , gameState     :: GameState
   , worldSize     :: Point
   , keyboardState :: KeyBoardState
-  , worldType     :: WorldType
+  , backGround    :: Picture
 }
 
 blankWorld :: World
@@ -290,7 +302,7 @@ blankWorld = World{
   , gameState     = GoMode
   , worldSize     = (0,0)
   , keyboardState = KeyBoardState []
-  , worldType     = Overworld
+  , backGround    = Blank
 }
 
 newtype KeyBoardState = KeyBoardState { keys :: [Char] }
@@ -350,7 +362,7 @@ instance Show Time where
 instance CollisionObject Player where
   -- trivial stuff
   getName _ = "Mario";  getVel = velocity; getPos = position; isAlive = alive; kill p = p {alive = False}; facingLeft = isFacingLeft; faceLeft p b = p {isFacingLeft = b}
-  setInternalState p newState= p {movementState = newState}; groundState p b = p {grounded = b}; isGrounded = grounded; getInternalState = movementState
+  setInternalState p newState= p {movementState = newState}; groundState p b = p {grounded = b}; isGrounded = grounded; getInternalState = movementState; hasGravity _ = True ; hasCollision = collision
   -- bit more complicated stuff
   getBB p | movementState p /= Crouching && powerUpState p /= Small  = (position p + (0.05, 0), (0.9,2))
           | otherwise = (position p + (0.05, 0), (0.9,1))
@@ -369,8 +381,8 @@ instance Show Player where
 -- Enemy Instances
 instance CollisionObject Enemy where
   -- trivial stuff
-  getName = ename ; getBB e = (eposition e + (0.05, 0), eboundingBoxS e);getVel = evelocity;getPos = eposition ; isAlive = ealive ; getInternalState = emovementState
-  isGrounded = egrounded; groundState e b = e{egrounded = b}; setInternalState e newState= e {emovementState = newState};  kill e = e {ealive = False}
+  getName = ename ; getBB e = (eposition e + (0.05, 0), eboundingBoxS e);getVel = evelocity;getPos = eposition ; isAlive = ealive ; getInternalState = emovementState; hasCollision _ = True
+  isGrounded = egrounded; groundState e b = e{egrounded = b}; setInternalState e newState= e {emovementState = newState};  kill e = e {ealive = False}; hasGravity _ = True
   facingLeft = efacingLeft; faceLeft p b = p{efacingLeft = b}
   -- bit more complicated stuff
   setBBSize obj newBBSize = obj {eboundingBoxS = newBBSize}
@@ -392,7 +404,7 @@ instance Eq Enemy where
 instance CollisionObject Block where
   -- trivial stuff
   getName = bname; getBB b = (bposition b, bboundingBoxS b); getVel _ = (0,0) ; getPos = bposition; setVel obj _ = obj; getInternalState _ = Standing
-  setInternalState b _ = b; groundState b _ = b ;  isGrounded _ = True ; isAlive = exists ; kill b = b { exists = False }
+  setInternalState b _ = b; groundState b _ = b ;  isGrounded _ = True ; isAlive = exists ; kill b = b { exists = False }; hasGravity _ = False; hasCollision = bCollision
   facingLeft _ = False; faceLeft b _ = b
   -- bit more complicated stuff
   setBBSize obj@(Block {bboundingBoxS}) newBBSize = obj {bboundingBoxS = newBBSize}
@@ -412,8 +424,8 @@ instance Show Block where
 -- PickupObject Instances
 instance CollisionObject PickupObject where
   -- trivial stuff
-  getName = poname; getBB po = (poposition po + (0.05,0), poboundingBoxS po); getVel = povelocity;getPos = poposition; getInternalState _ = Walking
-  isGrounded = pogrounded ; setInternalState po _ = po ;  isAlive = poalive ;  groundState po b = po{pogrounded = b} ; kill po = po {poalive = False}
+  getName = poname; getBB po = (poposition po + (0.05,0), poboundingBoxS po); getVel = povelocity;getPos = poposition; getInternalState _ = Walking; hasCollision _ = True
+  isGrounded = pogrounded ; setInternalState po _ = po ;  isAlive = poalive ;  groundState po b = po{pogrounded = b} ; kill po = po {poalive = False}; hasGravity = pogravity 
   facingLeft _ = False; faceLeft po _ = po
   -- bit more complicated stuff
   setBBSize obj@(PickupObject {poboundingBoxS}) newBBSize = obj {poboundingBoxS = newBBSize}

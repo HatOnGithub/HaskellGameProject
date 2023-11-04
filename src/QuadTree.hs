@@ -41,7 +41,7 @@ insertAll (x:xs) t@(Node bb objs tl tr bl br)   = insertAll xs (insert x t)
 insert :: (CollisionObject a, Eq a) => a -> QuadTree a -> QuadTree a
 insert x t@(Node bb xs tl tr bl br)
     -- doesn't fit, doesn't belong, begone
-    | not (x `fitsIn` bb) = t
+    | not (x `fitsIn` bb) || not (hasCollision x)= t
 
     -- there is room and there are no subnodes!, come in!
     | length xs < thresholdObjectsPerQuadrant && not (hasSubNodes t)

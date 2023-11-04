@@ -23,7 +23,7 @@ step m rawdt w  | gameState w == GoMode = (return  . assignAnimations m . stepPu
         where dt = rawdt * worldSpeed
 
 stepPure ::  Float -> World -> World
-stepPure dt w | gameState w == GoMode = ( updateTimes dt . cullDeadObjects . processCollision . processGravity dt . processVectors dt . processInputs . updateMovementStates ) w
+stepPure dt w | gameState w == GoMode = ( updateTimes dt .  processCollision . processGravity dt . processVectors dt . processInputs . updateMovementStates ) w
               | otherwise             =  w
 
 input :: Event -> World -> IO World
@@ -61,8 +61,7 @@ assignAnimations m w@(World {
 
 tryAssign :: CollisionObject a => Map String (Map String Animation) -> a -> a
 tryAssign map obj
-  | not    (hasNoAnimations obj) = obj
-  | isJust (map !? getName obj ) = setAnimations obj (map ! getName obj)
+  | hasNoAnimations obj && isJust (map !? getName obj ) = setAnimations obj (map ! getName obj)
   | otherwise                    = obj
 
 
@@ -87,9 +86,9 @@ inputResult p keys@(k:ks)
     | k == 'w'|| k == 'W' = tryJump (inputResult p ks)
     | k == 's'|| k == 'S' = tryCrouch (inputResult p ks)
     | k == 'd'            = addHorizontalVelocity mvmntVelocity (inputResult p ks)
-    | k == 'D'            = addHorizontalVelocity (mvmntVelocity * 1.5) (inputResult p ks)
+    | k == 'D'            = addHorizontalVelocity (mvmntVelocity * runModifier) (inputResult p ks)
     | k == 'a'            = addHorizontalVelocity (-mvmntVelocity) (inputResult p ks)
-    | k == 'A'            = addHorizontalVelocity (-mvmntVelocity * 1.5) (inputResult p ks)
+    | k == 'A'            = addHorizontalVelocity (-mvmntVelocity * runModifier) (inputResult p ks)
 
  where  tryJump player  | isGrounded player && snd (velocity player) <= 0
                             = player {velocity = (fst (velocity player), jumpVelocity), grounded = False, movementState = Jumping}
@@ -197,8 +196,12 @@ enemSpeed bTree eTree e | not (null collideBlocks && null collideEnemies) = setV
         collideEnemies = getAllInArea collideBox eTree
 
 testPop :: Player -> [Block] -> Block -> Block
-testPop p reachable b   | b `elem` reachable && headCheck p b = b {exists = False}
+testPop p reachable b   | b `elem` reachable && headCheck p b = fst (popBlock b)
                         | otherwise     = b
+
+popBlock :: Block -> (Block, BlockContents)
+popBlock b | show (item b) == "Full" && poppable b = (b{item = Empty}, item b)
+           | otherwise = (b, Empty)
 
 worldCollision :: CollisionObject a => a -> QuadTree Block -> a
 worldCollision obj bTree = do
@@ -219,14 +222,9 @@ correctPosition = foldl (\ obj x -> setPos obj (getPos obj - smallestChange (obj
                                 | abs x >= abs y = (0 , y)
 
 groundCheck :: CollisionObject a => a -> Block -> Bool
-groundCheck obj b = getBB b `intersects` groundBB
-    where groundBB = ((x + 0.02, y - 0.01), (w - 0.04, 0.01))
-          ((x,y), (w, _)) = getBB obj
+groundCheck obj b = getBB b `intersects` ((x + 0.02, y - 0.01), (w - 0.04, 0.01))
+    where ((x,y), (w, _)) = getBB obj
 
 headCheck :: CollisionObject a => a -> Block -> Bool
-headCheck obj b = getBB b `intersects` groundBB
-    where groundBB = ((x + 0.02, h + y), (w - 0.04, 0.01))
-          ((x,y), (w, h)) = getBB obj
-
-cullDeadObjects :: World -> World
-cullDeadObjects w@( World { enemies, blocks }) = w { enemies = filter isAlive enemies, blocks = filter isAlive blocks }
+headCheck obj b = snd (getVel obj) >= 0 && getBB b `intersects` ((x + 0.02, h + y), (w - 0.04, 0.01))
+    where ((x,y), (w, h)) = getBB obj

@@ -28,12 +28,13 @@ viewUI w@(World {
 viewWorld :: World -> [Picture]
 viewWorld w@(World {
     player, enemies, blocks, pickupObjects, points,
-    timeLeft, camera, gameState, worldSize}) =
+    timeLeft, camera, gameState, worldSize, backGround}) =
         getFrame camera player  :
         map (getFrame camera) enemies ++
         map (getFrame camera) pickupObjects ++
         map (getFrame camera) blocks ++
-        map (getFrame camera) pipes
+        map (getFrame camera) pipes ++
+        [(Scale worldScale worldScale . uncurry Translate (-camera * (0.5, 0))) backGround]
         -- ++[viewQT w] -- uncomment to view the quad tree
     where nblocks = filter (\b -> getName b /= "Pipe") blocks
           pipes   = filter (\b -> getName b == "Pipe") blocks

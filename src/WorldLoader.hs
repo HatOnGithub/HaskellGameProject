@@ -4,6 +4,8 @@ module WorldLoader where
 
 import Model
 import Data.List.Split (splitOn, whenElt)
+import Graphics.Gloss
+import AnimationLoader (blShift, scaleToWorld)
 
 loadLevelAt :: FilePath -> IO World
 loadLevelAt path = do
@@ -14,7 +16,9 @@ loadLevelAt path = do
         [width,height]  = map read (splitOn " " s) :: [Int]
         fw              = fromIntegral width
         time            = read tstr :: Float
-    return (parseWorld (blankWorld {timeLeft = Secs time, worldSize = (fw,fw)}) width height w)
+    rawbg <- loadBMP (bgPath t)
+    let bg = scaleToWorld  rawbg
+    return (parseWorld (blankWorld {timeLeft = Secs time, worldSize = (fw,fw), backGround = bg }) width height w)
 
 discardCommentsAndEmptyLines :: [String] -> [String]
 discardCommentsAndEmptyLines []     = []
@@ -68,3 +72,8 @@ parseChar world w h c = case c of
     _ -> world
 
     where pos = (fromIntegral w , fromIntegral h )
+
+
+bgPath :: String -> FilePath
+bgPath "Overworld"    = "src\\Textures\\Background\\Overworld.bmp"
+bgPath "Underground"  = "src\\Textures\\Background\\Underground.bmp"

@@ -22,11 +22,9 @@ animLocations = [
     , ("Castle", "src\\Textures\\Blocks\\Castle")
     , ("Pole"  , "src\\Textures\\Blocks\\Pole"  )
     , ("Flag"  , "src\\Textures\\Blocks\\Flag"  )
-    , ("FakeBrick" , "src\\Textures\\Blocks\\FakeBrick" )]
+    , ("FakeBrick" , "src\\Textures\\Blocks\\FakeBrick" )
+    ]
 
-bgPath :: String -> FilePath
-bgPath "Overworld"    = ""
-bgPath "Underground"  = ""
 
 levels :: [(String, String)]
 levels = [("World 1-1", "src\\Worlds\\1-1.txt")]
@@ -35,7 +33,7 @@ main :: IO ()
 main = do
     anims <- animLocationToMap animLocations
     world <- loadLevelAt (snd ( head levels))
-    playIO (InWindow "PringleMan dies from Heart Disease" screenSize (0,0))
+    playIO (InWindow "PringleMan dies from Heart Disease" screenSize (448,120))
             (makeColorI 73 116 235 255)
             120
             world
