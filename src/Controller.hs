@@ -8,7 +8,6 @@ import Data.List
 import Data.Map (Map, (!?), (!))
 import Data.Maybe
 import Data.Char (toUpper, toLower)
-import Data.Bifunctor
 
 movementKeys :: [Char]
 movementKeys =  [ 'w', 'W'
@@ -23,7 +22,7 @@ step m rawdt w  | gameState w == GoMode = (return  . assignAnimations m . stepPu
         where dt = rawdt * worldSpeed
 
 stepPure ::  Float -> World -> World
-stepPure dt w | gameState w == GoMode = ( updateTimes dt .  processCollision . processGravity dt . processVectors dt . processInputs . updateMovementStates ) w
+stepPure dt w | gameState w == GoMode = ( updateTimes dt . cullDeadObjects . processCollision . processGravity dt . processVectors dt . processInputs . updateMovementStates ) w
               | otherwise             =  w
 
 input :: Event -> World -> IO World
@@ -278,3 +277,9 @@ groundCheck obj b = getBB b `intersects` ((x + 0.02, y - 0.01), (w - 0.04, 0.01)
 headCheck :: CollisionObject a => a -> Block -> Bool
 headCheck obj b = snd (getVel obj) >= 0 && getBB b `intersects` ((x + 0.02, h + y), (w - 0.04, 0.01))
     where ((x,y), (w, h)) = getBB obj
+
+cullDeadObjects :: World -> World
+cullDeadObjects w@(World{enemies, blocks, pickupObjects}) = 
+    w { enemies = filter isAlive enemies,
+        blocks  = filter isAlive blocks ,
+        pickupObjects = filter isAlive pickupObjects}
