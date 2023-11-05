@@ -107,9 +107,9 @@ data PowerUpState = Small | Large | Fire
 data AIPattern = Inactive | HopChase | Throw | Patrol | RunAway | Bowser
   deriving (Eq, Show)
 
-data BlockContents = Object PickupType | Coin Float | Empty
+data BlockContents = Object PickupType | Coins Float | Empty
 
-data PickupType = Mushroom | FireFlower | Star
+data PickupType = Coin | Mushroom | FireFlower | Star
   deriving (Eq, Show)
 
 
@@ -276,6 +276,19 @@ data PickupObject = PickupObject {
   , pogravity       :: Bool
 }
 
+basicPickupObject :: PickupObject
+basicPickupObject = PickupObject {
+    poname          = ""
+  , poposition      = (0,0)
+  , povelocity      = (0,0)
+  , pickupType      = Coin
+  , poanimations    = Map.empty
+  , poboundingBoxS  = (1,1)
+  , pogrounded      = False
+  , poalive         = True
+  , pogravity       = False
+}
+
 data World = World {
     player        :: Player
   , enemies       :: [Enemy]
@@ -348,7 +361,7 @@ instance Num (Float, Float) where
 
 instance Show BlockContents where
   show (Object _) = "Full"
-  show (Coin _)   = "Full"
+  show (Coins _)   = "Full"
   show Empty      = "Empty"
 
 instance Show Animation where

@@ -82,18 +82,16 @@ processInputs w@(World {player, keyboardState = kbs@(KeyBoardState inputs)}) =  
 inputResult :: Player -> [Char] -> Player
 inputResult p []      = p {velocity = velocity p * (0,1)}
 inputResult p keys@(k:ks)
-    | movementState p == Crouching && ('s' `elem` keys || 'S' `elem` keys) = p {velocity = (0,-0.5), grounded = True, movementState = Crouching }
+    | ('s' `elem` keys || 'S' `elem` keys) && isGrounded p = p {velocity = (fst (velocity p), -0.5), movementState = Crouching }
     | k == 'w'|| k == 'W' = tryJump (inputResult p ks)
-    | k == 's'|| k == 'S' = tryCrouch (inputResult p ks)
     | k == 'd'            = addHorizontalVelocity mvmntVelocity (inputResult p ks)
     | k == 'D'            = addHorizontalVelocity (mvmntVelocity * runModifier) (inputResult p ks)
     | k == 'a'            = addHorizontalVelocity (-mvmntVelocity) (inputResult p ks)
     | k == 'A'            = addHorizontalVelocity (-mvmntVelocity * runModifier) (inputResult p ks)
+    | otherwise           = p
 
  where  tryJump player  | isGrounded player && snd (velocity player) <= 0
                             = player {velocity = (fst (velocity player), jumpVelocity), grounded = False, movementState = Jumping}
-                        | otherwise         = player
-        tryCrouch player| isGrounded player = player {velocity = (0, -0.5), movementState = Crouching}
                         | otherwise         = player
         addHorizontalVelocity amount player = player {velocity = velocity player + (amount, 0), movementState = crouchCancelCheck}
         crouchCancelCheck   | movementState p == Crouching = Standing -- cancels out the crouch
@@ -131,8 +129,8 @@ tickTime dt (Secs n) = Secs (n - dt)
 
 
 processVectors ::  Float -> World -> World
-processVectors dt w@( World { player, enemies, blocks, pickupObjects }) = w {
-          player  = applyVectors dt player
+processVectors dt w@( World { player, enemies, blocks, pickupObjects}) = w {
+          player  = applyPlayerVectors dt player (movementState player == Crouching)
         , enemies = map (applyVectors dt) enemies
         , blocks  = map (applyVectors dt) blocks
         , pickupObjects = map (applyVectors dt) pickupObjects
@@ -145,9 +143,16 @@ processGravity dt w@( World { player, enemies, pickupObjects }) = w {
         , pickupObjects = map (applyGravity dt) pickupObjects
         }
 
+applyPlayerVectors :: Float -> Player -> Bool -> Player
+applyPlayerVectors dt p isCrouching
+    | not (isAlive p)   = p
+    | isCrouching       = setVel (setPos p (getPos p + (getVel p * toPoint dt ))) deceleration
+    | otherwise         = setPos p (getPos p + (getVel p * toPoint dt))
+    where deceleration = getVel p - (getVel p * toPoint (0.9 * dt))
+
 applyVectors :: CollisionObject a => Float ->  a ->  a
 applyVectors dt obj | isAlive obj   = setPos obj (getPos obj + (getVel obj * toPoint dt))
-                    |otherwise      = obj
+                    | otherwise      = obj
 
 
 applyGravity :: CollisionObject a => Float ->  a ->  a

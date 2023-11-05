@@ -56,9 +56,9 @@ parseChar world w h c = case c of
     'D' -> world {blocks = dirt   pos           : blocks world}
     'H' -> world {blocks = block  pos           : blocks world}
     'B' -> world {blocks = brick  pos           : blocks world}
-    'Q' -> world {blocks = qBlock pos (Coin 1)  : blocks world}
+    'Q' -> world {blocks = qBlock pos (Coins 1)  : blocks world}
     -- special blocks
-    '1' -> world {blocks = fakeBrick  pos (Coin 10)     : blocks world}
+    '1' -> world {blocks = fakeBrick  pos (Coins 10)     : blocks world}
     '2' -> world {blocks = qBlock pos (Object Mushroom) : blocks world}
     '3' -> world {blocks = fakeBrick  pos (Object Star) : blocks world}
     '#' -> world {blocks = castle pos : blocks world}
