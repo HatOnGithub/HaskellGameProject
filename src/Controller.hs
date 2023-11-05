@@ -8,6 +8,7 @@ import Data.List
 import Data.Map (Map, (!?), (!))
 import Data.Maybe
 import Data.Char (toUpper, toLower)
+import GHC.Base (neChar)
 
 movementKeys :: [Char]
 movementKeys =  [ 'w', 'W'
@@ -179,12 +180,27 @@ playerCollision bTree eTree pTree w@( World { player, enemies, pickupObjects, bl
           (cx,cy)   = getCenter np
           reachableBlocks = getCollisionPartners np bTree
           (piP, pickups) = itemCollision wcP pTree
-          (np, nEnems) = stompEnems piP enemies
+          (np, nEnems) = interactEnemPlayer piP enemies
+
+interactEnemPlayer :: Player -> [Enemy] -> (Player, [Enemy])
+interactEnemPlayer pl [] = (pl, [])
+interactEnemPlayer pl enems = (nPl, nEnems)
+                    where
+                        (mPl, nEnems) = stompEnems pl enems
+                        nPl = damagePlayer mPl (filter (collidesWith mPl) (filter isAlive nEnems))
+
+damagePlayer :: Player -> [Enemy] -> Player
+damagePlayer pl@(Player {iFrames}) [] = pl {iFrames = False}
+damagePlayer pl@(Player {powerUpState, starMan, iFrames}) _ | iFrames || starMan = pl
+                                                            | powerUpState == Small = kill pl
+                                                            | powerUpState == Large = pl { powerUpState = Small, iFrames = True}
+                                                            | powerUpState == Fire = pl { powerUpState = Large, iFrames = True}
+
 
 stompEnems ::Player -> [Enemy] -> (Player, [Enemy])
 stompEnems pl [] = (pl, [])
-stompEnems pl@(Player {velocity, grounded, movementState}) (enem: enems) | jump = (pl {velocity = (fst velocity , jumpVelocity), grounded = False, movementState = Jumping} , nEnem:nEnems)
-                            | otherwise = (nPl, nEnem:nEnems)
+stompEnems pl@(Player {velocity, grounded, movementState}) (enem: enems)    | jump = (pl {velocity = (fst velocity , jumpVelocity), grounded = False, movementState = Jumping} , nEnem:nEnems)
+                                                                            | otherwise = (nPl, nEnem:nEnems)
             where
                 (nEnem, jump) = stompCheck pl enem
                 (nPl, nEnems) = stompEnems pl enems
@@ -192,7 +208,7 @@ stompEnems pl@(Player {velocity, grounded, movementState}) (enem: enems) | jump 
 
 
 stompCheck :: Player -> Enemy -> (Enemy, Bool)
-stompCheck pl enem  | getBB enem `intersects` ((x + 0.02, y - 0.01), (w - 0.04, 0.01)) = (kill enem, True)
+stompCheck pl enem  | getBB enem `intersects` ((x + 0.2, y - 0.1), (w - 0.2, 0.08)) = (kill enem, True)
                     | otherwise = (enem, False)
     where ((x,y), (w, _)) = getBB pl
 
