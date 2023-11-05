@@ -156,10 +156,11 @@ applyVectors dt obj | isAlive obj   = setPos obj (getPos obj + (getVel obj * toP
 
 
 applyGravity :: CollisionObject a => Float ->  a ->  a
-applyGravity dt obj | not (isAlive obj)          = setVel obj (0,0)
-                    | not (isGrounded obj)       = setVel obj (getVel obj + gravity * toPoint dt)
-                    | snd (getVel obj) <= 0      = setVel obj (fst (getVel obj) , -0.1)
-                    | otherwise = obj
+applyGravity dt obj | not (hasGravity obj)      = obj
+                    | not (isAlive obj)         = setVel obj (0,0)
+                    | not (isGrounded obj)      = setVel obj (getVel obj + gravity * toPoint dt)
+                    | snd (getVel obj) <= 0     = setVel obj (fst (getVel obj) , -0.1)
+                    | otherwise                 = obj
 
 processCollision ::  World -> World
 processCollision w@( World { player, enemies, blocks, pickupObjects, points }) = (enemyCollision bTree eTree . playerCollision bTree eTree pTree) w
