@@ -86,7 +86,7 @@ updateAnim dt _ a@(Animation {frames, frameLength, timer, index, loops})
 data Time = Secs Float | NA
   deriving (Eq, Ord)
 
-data GameState = GoMode | Pause
+data GameState = GoMode | Pause | Win
   deriving (Eq)
 
 data Animation = Animation { frames :: [Picture], frameLength :: Float, timer :: Float, index :: Int, loops :: Bool }
@@ -108,6 +108,7 @@ data AIPattern = Inactive | HopChase | Throw | Patrol | RunAway | Bowser
   deriving (Eq, Show)
 
 data BlockContents = Object PickupType | Coins Float | Empty
+  deriving (Eq)
 
 data PickupType = Coin | Mushroom | FireFlower | Star
   deriving (Eq, Show)
@@ -276,19 +277,43 @@ data PickupObject = PickupObject {
   , pogrounded      :: Bool
   , poalive         :: Bool
   , pogravity       :: Bool
+  , bouncy          :: Bool
 }
 
 basicPickupObject :: PickupObject
 basicPickupObject = PickupObject {
     poname          = ""
   , poposition      = (0,0)
-  , povelocity      = (0,0)
+  , povelocity      = (mvmntVelocity * 1.1, 0)
   , pickupType      = Coin
   , poanimations    = Map.empty
   , poboundingBoxS  = (1,1)
   , pogrounded      = False
   , poalive         = True
   , pogravity       = False
+  , bouncy          = False
+}
+
+mushroom :: Point -> PickupObject
+mushroom pos = basicPickupObject {
+    poname      = "Mushroom"
+  , poposition  = pos
+  , pogravity   = True
+}
+
+fireFlower :: Point -> PickupObject
+fireFlower pos = basicPickupObject {
+    poname      = "FireFlower"
+  , poposition  = pos
+  , pogravity   = True
+}
+
+star :: Point -> PickupObject
+star pos = basicPickupObject {
+    poname      = "Star"
+  , poposition  = pos
+  , pogravity   = True
+  , bouncy      = True
 }
 
 data World = World {

@@ -163,31 +163,37 @@ applyGravity dt obj | not (hasGravity obj)      = obj
                     | otherwise                 = obj
 
 processCollision ::  World -> World
-processCollision w@( World { player, enemies, blocks, pickupObjects, points }) = (enemyCollision bTree eTree . playerCollision bTree eTree pTree) w
+processCollision w@( World { player, enemies, blocks, pickupObjects, points }) = 
+    (poCollision        bTree .
+     enemyCollision     bTree eTree . 
+     playerCollision    bTree eTree pTree) w
     where   bTree = buildQuadTree blocks        (worldSize w)
             eTree = buildQuadTree enemies       (worldSize w)
             pTree = buildQuadTree pickupObjects (worldSize w)
 
 playerCollision :: QuadTree Block -> QuadTree Enemy -> QuadTree PickupObject -> World -> World
 playerCollision bTree eTree pTree w@( World { player, enemies, pickupObjects, blocks, points, worldSize, timeLeft }) = w {
-        player = if snd (getPos player) >= -5 && timeLeft > Secs 0 then np else kill player
-    ,   camera = (clamp cx leftOfScreenClamp (fst worldSize - leftOfScreenClamp - 1), clamp cy bottomOfScreenClamp (snd worldSize))
-    ,   blocks = map (testPop np reachableBlocks) blocks
+        player  = if snd (getPos player) >= -5 && timeLeft > Secs 0 then np else kill player
+    ,   camera  = (clamp cx leftOfScreenClamp (fst worldSize - leftOfScreenClamp - 1), clamp cy bottomOfScreenClamp (snd worldSize))
+    ,   blocks  = map fst blockPopPairs
     ,   enemies = nEnems
-    ,   pickupObjects = killPickups pickupObjects pickups
+    ,   pickupObjects = killPickups pickupObjects pickups ++ newPOs
+    ,   points  = points + (length (filter (isCoin . snd ) pops) * 200)
     }
-    where wcP        = worldCollision player bTree
-          (cx,cy)   = getCenter np
-          reachableBlocks = getCollisionPartners np bTree
-          (piP, pickups) = itemCollision wcP pTree
-          (np, nEnems) = interactEnemPlayer piP enemies
+    where   wcP             = worldCollision bTree player
+            (cx,cy)         = getCenter np
+            reachableBlocks = getCollisionPartners np bTree
+            (piP, pickups)  = itemCollision wcP pTree
+            (np, nEnems)    = interactEnemPlayer piP enemies
+            blockPopPairs   = map (testPop np reachableBlocks) blocks
+            pops            = filter (\pair -> snd pair /= Empty) blockPopPairs
+            newPOs          = map contentsToPO (filter (not . isCoin . snd ) pops)
 
 interactEnemPlayer :: Player -> [Enemy] -> (Player, [Enemy])
 interactEnemPlayer pl [] = (pl, [])
 interactEnemPlayer pl enems = (nPl, nEnems)
-                    where
-                        (mPl, nEnems) = stompEnems pl enems
-                        nPl = damagePlayer mPl (filter (collidesWith mPl) (filter isAlive nEnems))
+    where   (mPl, nEnems)   = stompEnems pl enems
+            nPl             = damagePlayer mPl (filter (collidesWith mPl) (filter isAlive nEnems))
 
 damagePlayer :: Player -> [Enemy] -> Player
 damagePlayer pl@(Player {iFrames}) [] = pl {iFrames = False}
@@ -206,22 +212,21 @@ stompEnems pl@(Player {velocity, grounded, movementState}) (enem: enems)    | ju
                 (nPl, nEnems) = stompEnems pl enems
 
 
-
 stompCheck :: Player -> Enemy -> (Enemy, Bool)
 stompCheck pl enem  | getBB enem `intersects` ((x + 0.2, y - 0.1), (w - 0.2, 0.08)) = (kill enem, True)
                     | otherwise = (enem, False)
     where ((x,y), (w, _)) = getBB pl
 
-    
+
 
 itemCollision :: Player -> QuadTree PickupObject -> (Player, [PickupObject])
 itemCollision p pTree = (foldl playerItemInteract p collidingObjs, collidingObjs)
-        where 
+        where
             posPickupObj = getCollisionPartners p pTree
             collidingObjs = filter (collidesWith p) posPickupObj
 
 playerItemInteract :: Player -> PickupObject -> Player
-playerItemInteract pl@(Player {powerUpState, starMan, starManTimer}) po@(PickupObject { pickupType, poalive})     
+playerItemInteract pl@(Player {powerUpState, starMan, starManTimer}) po@(PickupObject { pickupType, poalive})
                             | pickupType == Mushroom && powerUpState == Small   = pl {powerUpState = Large}
                             | pickupType == FireFlower                          = pl {powerUpState = Fire}
                             | pickupType == Star                                = pl {starMan = True, starManTimer = 5}
@@ -246,8 +251,7 @@ enemyCollision bTree eTree w@( World { player, enemies, blocks, points }) = w {
 collideEnemy :: Enemy -> QuadTree Block -> QuadTree Enemy -> Enemy
 collideEnemy enemy bTree eTree =
     enemSpeed bTree eTree
-    (worldCollision enemy bTree)
-
+    (worldCollision bTree enemy)
 
 enemSpeed :: QuadTree Block -> QuadTree Enemy -> Enemy -> Enemy
 enemSpeed bTree eTree e | not (null collideBlocks && null collideEnemies) = setVel e (getVel e * (-1, 1) )
@@ -260,16 +264,43 @@ enemSpeed bTree eTree e | not (null collideBlocks && null collideEnemies) = setV
         collideBlocks  = getAllInArea collideBox bTree
         collideEnemies = getAllInArea collideBox eTree
 
-testPop :: Player -> [Block] -> Block -> Block
-testPop p reachable b   | b `elem` reachable && headCheck p b = fst (popBlock b)
-                        | otherwise     = b
+isCoin :: BlockContents -> Bool
+isCoin (Coins _) = True
+isCoin _         = False
+
+testPop :: Player -> [Block] -> Block -> (Block, BlockContents)
+testPop p reachable b   | b `elem` reachable && headCheck p b = popBlock b
+                        | otherwise     = (b, Empty)
 
 popBlock :: Block -> (Block, BlockContents)
-popBlock b | show (item b) == "Full" && poppable b = (b{item = Empty}, item b)
-           | otherwise = (b, Empty)
+popBlock b@(Block {item = Empty})     = (b, Empty)
+popBlock b@(Block {item = Coins  1})  = (b {item = Empty}, Coins 1)
+popBlock b@(Block {item = Coins  x})  = (b {item = Coins (x - 1)}, Coins x)
+popBlock b@(Block {item = Object x})  = (b {item = Empty}, Object x)
 
-worldCollision :: CollisionObject a => a -> QuadTree Block -> a
-worldCollision obj bTree = do
+
+contentsToPO :: (Block, BlockContents) -> PickupObject
+contentsToPO (b, Object t)  | t == Mushroom     = mushroom   (getPos b + (0,1))
+                            | t == FireFlower   = fireFlower (getPos b + (0,1))
+                            | t == Star         = star       (getPos b + (0,1))
+
+poCollision :: QuadTree Block  -> World -> World
+poCollision bTree w@( World { player, enemies, pickupObjects, blocks, points, worldSize, timeLeft }) = w {
+    pickupObjects = map (poBounce bTree . worldCollision bTree) pickupObjects
+}
+
+poBounce :: QuadTree Block -> PickupObject -> PickupObject
+poBounce bTree po   | not (null collideBlocks) = setVel po (getVel po * (-1, 1) )
+                    | otherwise = po
+    where
+        (vX, _) = getVel po
+        ((x, y), (w, h)) = getBB po
+        collideBox  | vX >= 0 =((x + (w + 0.001), y + 0.01), (0.0011, h - 0.02))
+                    | vX < 0 = ((x - 0.0021, y+ 0.01), (0.0011, h - 0.02))
+        collideBlocks  = getAllInArea collideBox bTree
+
+worldCollision :: CollisionObject a =>  QuadTree Block -> a -> a
+worldCollision bTree obj = do
         let possiblePartners    = getCollisionPartners obj bTree
             collidableBlocks    = filter (obj `collidesWith`) possiblePartners
             sortedOnDistance    = sortBy (\ a b -> abs (bposition a - getTopCenter obj) `compare` abs (bposition b - getTopCenter obj)) collidableBlocks
@@ -295,7 +326,7 @@ headCheck obj b = snd (getVel obj) >= 0 && getBB b `intersects` ((x + 0.02, h + 
     where ((x,y), (w, h)) = getBB obj
 
 cullDeadObjects :: World -> World
-cullDeadObjects w@(World{enemies, blocks, pickupObjects}) = 
+cullDeadObjects w@(World{enemies, blocks, pickupObjects}) =
     w { enemies = filter isAlive enemies,
         blocks  = filter isAlive blocks ,
         pickupObjects = filter isAlive pickupObjects}
