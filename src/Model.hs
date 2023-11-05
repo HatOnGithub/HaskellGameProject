@@ -151,6 +151,7 @@ data Player = Player {
   , alive         :: Bool
   , isFacingLeft  :: Bool
   , collision  :: Bool
+  , iFrames :: Bool
 }
 
 mario :: Point -> Player
@@ -166,7 +167,8 @@ mario pos = Player {
   , grounded      = False
   , alive         = True
   , isFacingLeft  = False
-  , collision  = True
+  , collision     = True
+  , iFrames       = True
   }
 
 data Enemy = Enemy {
