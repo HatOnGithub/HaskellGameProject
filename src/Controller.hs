@@ -67,12 +67,15 @@ tryAssign map obj
 
 updateTimes :: Float -> World -> World
 updateTimes dt w@( World { player, enemies, blocks, pickupObjects, timeLeft }) = w{
-      player        = modCurrentAnimation player dt
+      player        = modCurrentAnimation (updateStarManTime player dt) dt
     , enemies       = map (`modCurrentAnimation` dt) enemies
     , blocks        = map (`modCurrentAnimation` dt) blocks
     , pickupObjects = map (`modCurrentAnimation` dt) pickupObjects
     , timeLeft      = tickTime dt timeLeft
 }
+    where 
+        updateStarManTime p@(Player {starManTimer = 0}) t = p { starMan = False}
+        updateStarManTime p@(Player {starManTimer})     t = p { starManTimer  = max 0 (starManTimer - dt)}
 
 processInputs :: World -> World
 processInputs w@(World {player, keyboardState = kbs@(KeyBoardState inputs)}) =  w {player = inputResult player inputs}
@@ -163,9 +166,9 @@ applyGravity dt obj | not (hasGravity obj)      = obj
                     | otherwise                 = obj
 
 processCollision ::  World -> World
-processCollision w@( World { player, enemies, blocks, pickupObjects, points }) = 
+processCollision w@( World { player, enemies, blocks, pickupObjects, points }) =
     (poCollision        bTree .
-     enemyCollision     bTree eTree . 
+     enemyCollision     bTree eTree .
      playerCollision    bTree eTree pTree) w
     where   bTree = buildQuadTree blocks        (worldSize w)
             eTree = buildQuadTree enemies       (worldSize w)
@@ -173,12 +176,13 @@ processCollision w@( World { player, enemies, blocks, pickupObjects, points }) =
 
 playerCollision :: QuadTree Block -> QuadTree Enemy -> QuadTree PickupObject -> World -> World
 playerCollision bTree eTree pTree w@( World { player, enemies, pickupObjects, blocks, points, worldSize, timeLeft }) = w {
-        player  = if snd (getPos player) >= -5 && timeLeft > Secs 0 then np else kill player
+        player  = if snd (getPos player) >= -5 && timeLeft > Secs 0 then foldl applyPickupEffect np pickups else kill player
     ,   camera  = (clamp cx leftOfScreenClamp (fst worldSize - leftOfScreenClamp - 1), clamp cy bottomOfScreenClamp (snd worldSize))
     ,   blocks  = map fst blockPopPairs
     ,   enemies = nEnems
     ,   pickupObjects = killPickups pickupObjects pickups ++ newPOs
     ,   points  = points + (length (filter (isCoin . snd ) pops) * 200)
+    ,   gameState = checkWinConditions
     }
     where   wcP             = worldCollision bTree player
             (cx,cy)         = getCenter np
@@ -188,6 +192,8 @@ playerCollision bTree eTree pTree w@( World { player, enemies, pickupObjects, bl
             blockPopPairs   = map (testPop np reachableBlocks) blocks
             pops            = filter (\pair -> snd pair /= Empty) blockPopPairs
             newPOs          = map contentsToPO (filter (not . isCoin . snd ) pops)
+            checkWinConditions | any (\block -> (getName block == "Pole" || getName block == "Flag") && block `collidesWith` player) reachableBlocks = Win
+                               | otherwise = GoMode
 
 interactEnemPlayer :: Player -> [Enemy] -> (Player, [Enemy])
 interactEnemPlayer pl [] = (pl, [])
@@ -205,15 +211,19 @@ damagePlayer pl@(Player {powerUpState, starMan, iFrames}) _ | iFrames || starMan
 
 stompEnems ::Player -> [Enemy] -> (Player, [Enemy])
 stompEnems pl [] = (pl, [])
-stompEnems pl@(Player {velocity, grounded, movementState}) (enem: enems)    | jump = (pl {velocity = (fst velocity , jumpVelocity), grounded = False, movementState = Jumping} , nEnem:nEnems)
-                                                                            | otherwise = (nPl, nEnem:nEnems)
-            where
-                (nEnem, jump) = stompCheck pl enem
-                (nPl, nEnems) = stompEnems pl enems
+stompEnems pl@(Player {velocity, grounded, movementState, starMan}) (enem: enems)
+    | starMan = (nPl, killIntersecting enem : nEnems)
+    | jump = (pl {velocity = (fst velocity , jumpVelocity), grounded = False, movementState = Jumping} , nEnem:nEnems)
+    | otherwise = (nPl, nEnem:nEnems)
+    where
+        (nEnem, jump) = stompCheck pl enem
+        (nPl, nEnems) = stompEnems pl enems
+        killIntersecting e | pl `collidesWith` e = kill e
+                           | otherwise           = e
 
 
 stompCheck :: Player -> Enemy -> (Enemy, Bool)
-stompCheck pl enem  | getBB enem `intersects` ((x + 0.2, y - 0.1), (w - 0.2, 0.08)) = (kill enem, True)
+stompCheck pl enem  | getBB enem `intersects` ((x + 0.2, y - 0.1), (w - 0.2, 0.08)) && snd (velocity pl) < 0= (kill enem, True)
                     | otherwise = (enem, False)
     where ((x,y), (w, _)) = getBB pl
 
@@ -241,6 +251,15 @@ killPickup :: [PickupObject] -> PickupObject -> [PickupObject]
 killPickup [] _ = []
 killPickup (x:xs) obj   | x == obj = kill x : xs
                         | otherwise = x : killPickup xs obj
+
+applyPickupEffect :: Player -> PickupObject -> Player
+applyPickupEffect p po | pickupType po == Mushroom   = sizeUp p
+                       | pickupType po == FireFlower = p {powerUpState = Fire}
+                       | pickupType po == Star       = p {starMan = True, starManTimer = 20}
+
+sizeUp :: Player -> Player
+sizeUp p@(Player {powerUpState = s}) | s == Small = p {powerUpState = Large}
+                                     | otherwise  = p
 
 enemyCollision :: QuadTree Block -> QuadTree Enemy -> World -> World
 enemyCollision bTree eTree w@( World { player, enemies, blocks, points }) = w {

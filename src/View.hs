@@ -22,7 +22,9 @@ viewUI :: World -> [Picture]
 viewUI w@(World {
     player, enemies, blocks, pickupObjects, points,
     timeLeft, camera, gameState, worldSize}) 
-    | isAlive player = [Color white (Translate (-500) 380 (Scale 0.2 0.2 (Text ("Time until Heart Failure: " ++ show timeLeft))))]
+    | isAlive player && gameState == GoMode = [Color white (Translate (-500) 380 (Scale 0.2 0.2 (Text ("Time until Heart Failure: " ++ show timeLeft)))),
+                        Color white (Translate 30 380 (Scale 0.2 0.2 (Text ("Money collected for surgery: " ++ show points))))]
+    | gameState == Win = [Color white (Translate (-420) 0 (Scale 0.4 0.4 (Text "You got to the Hospital in time!")))]
     | otherwise      = [Color white (Translate (-355) 5 (Scale 0.5 0.5 (Text "Died from Heart Attack")))]
 
 viewWorld :: World -> [Picture]

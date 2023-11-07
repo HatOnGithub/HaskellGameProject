@@ -91,7 +91,8 @@ getQTBB :: CollisionObject a => QuadTree a -> BoundingBox
 getQTBB (Node bb _ _ _ _ _) = bb
 
 collidesWith :: (CollisionObject a, CollisionObject b) => a -> b -> Bool
-collidesWith objA objB = intersects (getBB objA) (getBB objB)
+collidesWith objA objB  | hasCollision objA && hasCollision objB = intersects (getBB objA) (getBB objB)
+                        | otherwise                              = False
 
 intersects :: BoundingBox -> BoundingBox -> Bool
 intersects ((xA, yA), (wA, hA)) ((xB, yB), (wB, hB)) =

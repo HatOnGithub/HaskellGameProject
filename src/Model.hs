@@ -299,6 +299,7 @@ mushroom pos = basicPickupObject {
     poname      = "Mushroom"
   , poposition  = pos
   , pogravity   = True
+  , pickupType  = Mushroom
 }
 
 fireFlower :: Point -> PickupObject
@@ -306,6 +307,7 @@ fireFlower pos = basicPickupObject {
     poname      = "FireFlower"
   , poposition  = pos
   , pogravity   = True
+  , pickupType  = FireFlower
 }
 
 star :: Point -> PickupObject
@@ -314,6 +316,7 @@ star pos = basicPickupObject {
   , poposition  = pos
   , pogravity   = True
   , bouncy      = True
+  , pickupType  = Star
 }
 
 data World = World {
