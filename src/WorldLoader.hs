@@ -6,6 +6,8 @@ import Model
 import Data.List.Split (splitOn, whenElt)
 import Graphics.Gloss
 import AnimationLoader (blShift, scaleToWorld)
+import Objects
+
 
 loadLevelAt :: FilePath -> IO World
 loadLevelAt path = do
@@ -18,7 +20,7 @@ loadLevelAt path = do
         time            = read tstr :: Float
     rawbg <- loadBMP (bgPath t)
     let bg = scaleToWorld  rawbg
-    return (parseWorld (blankWorld {timeLeft = Secs time, worldSize = (fw,fw), backGround = bg }) width height w)
+    return (parseWorld (blankWorld {timeLeft = Secs time, worldSize = (fw,fw), backGround = bg}) width height w)
 
 discardCommentsAndEmptyLines :: [String] -> [String]
 discardCommentsAndEmptyLines []     = []

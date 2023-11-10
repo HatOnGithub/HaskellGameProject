@@ -25,4 +25,6 @@ executable gloss-mario
                      , QuadTree
                      , AnimationLoader
                      , WorldLoader
+                     , Objects
+                     , FileLocations
   default-language:    Haskell2010

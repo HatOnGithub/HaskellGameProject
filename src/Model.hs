@@ -83,10 +83,11 @@ updateAnim dt _ a@(Animation {frames, frameLength, timer, index, loops})
   | timer + dt >= frameLength = a{timer = frameLength}
   | otherwise = a{timer = timer + dt}
 
+
 data Time = Secs Float | NA
   deriving (Eq, Ord)
 
-data GameState = GoMode | Pause | Win
+data GameState = GoMode | Pause | Win | Loading
   deriving (Eq)
 
 data Animation = Animation { frames :: [Picture], frameLength :: Float, timer :: Float, index :: Int, loops :: Bool }
@@ -155,22 +156,6 @@ data Player = Player {
   , iFrames :: Bool
 }
 
-mario :: Point -> Player
-mario pos = Player {
-    position      = pos
-  , velocity      = (0,0)
-  , animations    = Map.empty
-  , movementState = Standing
-  , powerUpState  = Fire
-  , boundingBoxS  = (0.9,1)
-  , starMan       = False
-  , starManTimer  = 0
-  , grounded      = False
-  , alive         = True
-  , isFacingLeft  = False
-  , collision     = True
-  , iFrames       = True
-  }
 
 data Enemy = Enemy {
     ename           :: String
@@ -185,26 +170,6 @@ data Enemy = Enemy {
   , ealive          :: Bool
   , efacingLeft     :: Bool
 }
--- DO NOT INSTANTIATE AS IS, IS TEMPLATE
-basicEnemy :: Enemy
-basicEnemy = Enemy {
-    ename           = ""
-  , eposition       = (0,0)
-  , evelocity       = (-mvmntVelocity,0)
-  , eanimations     = Map.empty
-  , emovementState  = Standing
-  , currentPattern  = Inactive
-  , aIPattern       = Patrol
-  , eboundingBoxS   = (0.9,1)
-  , egrounded       = False
-  , ealive          = True
-  , efacingLeft     = False }
-
-goomba :: Point -> Enemy
-goomba pos = basicEnemy { ename = "Goomba" , eposition = pos}
-
-koopa :: Point -> Enemy
-koopa pos = basicEnemy { ename = "Koopa" , eposition = pos }
 
 data Block = Block {
     bname           :: String
@@ -213,58 +178,9 @@ data Block = Block {
   , textures        :: Map String Animation
   , bboundingBoxS   :: Point
   , exists          :: Bool
-, bCollision        :: Bool
+  , bCollision        :: Bool
   , poppable        :: Bool
 }
-
-basicBlock :: Block
-basicBlock = Block{
-    bname           = ""
-  , bposition       = (0,0)
-  , item            = Empty
-  , textures        = Map.empty
-  , bboundingBoxS   = (1,1)
-  , exists          = True
-  , bCollision      = True
-  , poppable        = False
-}
-
-stone :: Point -> Block
-stone pos = basicBlock {bname = "Stone", bposition = pos}
-
-grass :: Point -> Block
-grass pos = basicBlock {bname = "Grass", bposition = pos}
-
-dirt :: Point -> Block
-dirt pos = basicBlock {bname = "Dirt", bposition = pos}
-
-brick :: Point -> Block
-brick pos  = basicBlock{ bname = "Brick" , bposition = pos, poppable = True}
-
-fakeBrick :: Point -> BlockContents -> Block
-fakeBrick pos item = basicBlock{ bname = "FakeBrick" , bposition = pos, item = item, poppable = True}
-
-block :: Point -> Block
-block pos = basicBlock {bname = "Block", bposition = pos}
-
-qBlock :: Point -> BlockContents -> Block
-qBlock pos item = basicBlock {bname = "QBlock", bposition = pos, item = item , poppable = True }
-
-pipe :: Point -> Int -> Block
-pipe pos length = basicBlock  { bname = "Pipe", bposition = pos
-                              , bboundingBoxS   = (2,fromIntegral length)}
-
-castle :: Point -> Block
-castle pos = basicBlock { bname = "Castle", bposition = pos
-                        , bboundingBoxS = (5,5)}
-
-pole :: Point -> Block
-pole pos = basicBlock { bname = "Pole", bposition = pos + (0.35, 0)
-                      , bboundingBoxS = (0.4, 1) }
-
-flag :: Point -> Block
-flag pos = basicBlock { bname = "Flag", bposition = pos + (0.35, 0), bCollision = False}
-
 
 
 data PickupObject = PickupObject {
@@ -280,44 +196,6 @@ data PickupObject = PickupObject {
   , bouncy          :: Bool
 }
 
-basicPickupObject :: PickupObject
-basicPickupObject = PickupObject {
-    poname          = ""
-  , poposition      = (0,0)
-  , povelocity      = (mvmntVelocity * 1.1, 0)
-  , pickupType      = Coin
-  , poanimations    = Map.empty
-  , poboundingBoxS  = (1,1)
-  , pogrounded      = False
-  , poalive         = True
-  , pogravity       = False
-  , bouncy          = False
-}
-
-mushroom :: Point -> PickupObject
-mushroom pos = basicPickupObject {
-    poname      = "Mushroom"
-  , poposition  = pos
-  , pogravity   = True
-  , pickupType  = Mushroom
-}
-
-fireFlower :: Point -> PickupObject
-fireFlower pos = basicPickupObject {
-    poname      = "FireFlower"
-  , poposition  = pos
-  , pogravity   = True
-  , pickupType  = FireFlower
-}
-
-star :: Point -> PickupObject
-star pos = basicPickupObject {
-    poname      = "Star"
-  , poposition  = pos
-  , pogravity   = True
-  , bouncy      = True
-  , pickupType  = Star
-}
 
 data World = World {
     player        :: Player
@@ -331,21 +209,6 @@ data World = World {
   , worldSize     :: Point
   , keyboardState :: KeyBoardState
   , backGround    :: Picture
-}
-
-blankWorld :: World
-blankWorld = World{
-    player        = mario (0,0)
-  , enemies       = []
-  , blocks        = []
-  , pickupObjects = []
-  , points        = 0
-  , timeLeft      = NA
-  , camera        = (0,0)
-  , gameState     = GoMode
-  , worldSize     = (0,0)
-  , keyboardState = KeyBoardState []
-  , backGround    = Blank
 }
 
 newtype KeyBoardState = KeyBoardState { keys :: [Char] }

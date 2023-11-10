@@ -24,10 +24,15 @@ viewUI w@(World {
     timeLeft, camera, gameState, worldSize}) 
     | isAlive player && gameState == GoMode = [Color white (Translate (-500) 380 (Scale 0.2 0.2 (Text ("Time until Heart Failure: " ++ show timeLeft)))),
                         Color white (Translate 30 380 (Scale 0.2 0.2 (Text ("Money collected for surgery: " ++ show points))))]
-    | gameState == Win = [Color white (Translate (-420) 0 (Scale 0.4 0.4 (Text "You got to the Hospital in time!")))]
-    | otherwise      = [Color white (Translate (-355) 5 (Scale 0.5 0.5 (Text "Died from Heart Attack")))]
+    | gameState == Win = [Color white (Translate (-420) 0 (Scale 0.4 0.4 (Text "You got to the Hospital in time!"))),
+                          Color white (Translate (-215) (-35) (Scale 0.3 0.3 (Text "press escape to restart")))]
+    | gameState == Pause = [Color white (Translate (-355) 5 (Scale 0.5 0.5 (Text "Paused")))]
+    | gameState == Loading = [Color white (Translate (-355) 5 (Scale 0.5 0.5 (Text "Loading")))]
+    | otherwise      = [Color white (Translate (-355) 5 (Scale 0.5 0.5 (Text "Died from Heart Attack"))),
+                        Color white (Translate (-215) (-30) (Scale 0.3 0.3 (Text "press escape to restart")))]
 
 viewWorld :: World -> [Picture]
+viewWorld w@(World { gameState = Loading}) = [Blank]
 viewWorld w@(World {
     player, enemies, blocks, pickupObjects, points,
     timeLeft, camera, gameState, worldSize, backGround}) =
@@ -59,7 +64,7 @@ getFrame' obj c Nothing  =  Scale x y missingTexture
 
 
 -- no longer used, took too much effort to throw away
-
+{- 
 
 viewQT :: World -> Picture
 viewQT w@(World {
@@ -81,4 +86,4 @@ quadTreeToPictures color cam (Node (pos,(w,h)) _ tl tr bl br) = Pictures [
     quadTreeToPictures (dim color) cam tr,
     quadTreeToPictures (dim color) cam bl,
     quadTreeToPictures (dim color) cam br]
-
+ -}

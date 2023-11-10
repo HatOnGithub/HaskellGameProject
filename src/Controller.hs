@@ -9,6 +9,9 @@ import Data.Map (Map, (!?), (!))
 import Data.Maybe
 import Data.Char (toUpper, toLower)
 import GHC.Base (neChar)
+import WorldLoader (loadLevelAt)
+import Objects
+import FileLocations
 
 movementKeys :: [Char]
 movementKeys =  [ 'w', 'W'
@@ -18,8 +21,9 @@ movementKeys =  [ 'w', 'W'
 
 
 step :: Map String (Map String Animation) -> Float -> World -> IO World
-step m rawdt w  | gameState w == GoMode = (return  . assignAnimations m . stepPure dt) w
-                | otherwise             = return w
+step m rawdt w  | gameState w == Loading = (return  . assignAnimations m) w {gameState = GoMode}
+                | gameState w == GoMode  = (return  . assignAnimations m . stepPure dt) w
+                | otherwise              = return w
         where dt = rawdt * worldSpeed
 
 stepPure ::  Float -> World -> World
@@ -34,7 +38,10 @@ input (EventKey (Char key) Down mod _) w@( World { player, enemies, keyboardStat
         if shift mod == Down then return w {keyboardState = kbs { keys = toUpper key : keys}}
         else return w {keyboardState = kbs { keys = toLower key : keys}}
     else return w
-
+input (EventKey (SpecialKey KeyEsc) Down _ _ )  w@(World {player, gameState})   
+    | gameState == GoMode && isAlive player = return w {gameState = Pause}
+    | gameState == Pause                    = return w {gameState = GoMode}
+    | otherwise                             = (loadLevelAt . snd . head) levels
 input (EventKey (SpecialKey KeyShiftL) Down _ _) w@(World {keyboardState = kbs@(KeyBoardState {keys})}) = return w{keyboardState = kbs { keys = map toUpper keys}}
 input (EventKey (SpecialKey KeyShiftL) Up _ _)   w@(World {keyboardState = kbs@(KeyBoardState {keys})}) = return w{keyboardState = kbs { keys = map toLower keys}}
 
