@@ -3,6 +3,7 @@ module Objects where
 import Model
 import qualified Data.Map as Map
 import Graphics.Gloss
+import System.Random (mkStdGen, StdGen, Random (random))
 
 -- world
 
@@ -46,7 +47,7 @@ basicEnemy :: Enemy
 basicEnemy = Enemy {
     ename           = ""
   , eposition       = (0,0)
-  , evelocity       = (-mvmntVelocity,0)
+  , evelocity       = (randomSignForFloat mvmntVelocity,0)
   , eanimations     = Map.empty
   , emovementState  = Standing
   , currentPattern  = Inactive
@@ -121,7 +122,7 @@ basicPickupObject :: PickupObject
 basicPickupObject = PickupObject {
     poname          = ""
   , poposition      = (0,0)
-  , povelocity      = (mvmntVelocity * 1.1, 0)
+  , povelocity      = (randomSignForFloat (mvmntVelocity * 1.1), 0)
   , pickupType      = Coin
   , poanimations    = Map.empty
   , poboundingBoxS  = (1,1)
@@ -155,3 +156,11 @@ star pos = basicPickupObject {
   , bouncy      = True
   , pickupType  = Star
 }
+
+--Kiest lekker tussen of een float positief of negatief is
+randomSignForFloat :: Float -> Float
+randomSignForFloat velo  | dikkeBMW = velo
+                      | otherwise = -velo
+                where 
+                  gen = mkStdGen 351887987986986876
+                  dikkeBMW = fst (random gen :: (Bool, StdGen))
