@@ -15,6 +15,11 @@ animLocations = [
     , ("Pole"  , "src\\Textures\\Blocks\\Pole"  )
     , ("Flag"  , "src\\Textures\\Blocks\\Flag"  )
     , ("FakeBrick" , "src\\Textures\\Blocks\\FakeBrick" )
+
+    , ("Mushroom" , "src\\Textures\\PickupObjects\\Mushroom" )
+    , ("Star" , "src\\Textures\\PickupObjects\\Star" )
+    , ("FireFlower" , "src\\Textures\\PickupObjects\\FireFlower" )
+    , ("Coin" , "src\\Textures\\PickupObjects\\Coin" )
     ]
 
 

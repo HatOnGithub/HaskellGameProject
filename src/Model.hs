@@ -184,8 +184,7 @@ data Block = Block {
 
 
 data PickupObject = PickupObject {
-    poname          :: String
-  , poposition      :: Point
+    poposition      :: Point
   , povelocity      :: Vector
   , pickupType      :: PickupType
   , poanimations    :: Map String Animation
@@ -330,7 +329,7 @@ instance Show Block where
 -- PickupObject Instances
 instance CollisionObject PickupObject where
   -- trivial stuff
-  getName = poname; getBB po = (poposition po + (0.05,0), poboundingBoxS po); getVel = povelocity;getPos = poposition; getInternalState _ = Walking; hasCollision _ = True
+  getName = show . pickupType; getBB po = (poposition po + (0.05,0), poboundingBoxS po); getVel = povelocity;getPos = poposition; getInternalState _ = Walking; hasCollision _ = True
   isGrounded = pogrounded ; setInternalState po _ = po ;  isAlive = poalive ;  groundState po b = po{pogrounded = b} ; kill po = po {poalive = False}; hasGravity = pogravity 
   facingLeft _ = False; faceLeft po _ = po
   -- bit more complicated stuff

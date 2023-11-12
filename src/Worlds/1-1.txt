@@ -13,8 +13,8 @@ Overworld
 ................Q...B2BQB....................................................B2B...............Q.....B3....Q..Q..Q.....B..........BB......H..H..........HH..H............BBQB............HHHHHH.......|.........;
 .........................................................................................................................................HH..HH........HHH..HH..........................HHHHHHH.......|.........;
 ........................................................................................................................................HHH..HHH......HHHH..HHH........................HHHHHHHH.......|.........;
-....m.................g.....P2........P3g.....P4...g.g...P4.......................................g.g.......k......g.g.......g.g.g.g...HHHH..HHHH....HHHHH..HHHH....P2.........g.g..P2HHHHHHHHH.......H...#.....;
-GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG..GGGGGGGGGGGGGGGGGG...GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG..GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG;
+....m.................g.....P2........P3g.....P4...g.g...P4.........G...............GG...H........g.g..............g.g.......g.g.g.g...HHHH..HHHH....HHHHH..HHHH....P2.........g.g..P2HHHHHHHHH.......H...#.....;
+GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG..DGGGGGGGGGGGGGGGDD...GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG..GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG;
 DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD..DDDDDDDDDDDDDDDDDD...DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD..DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD;
 // blocks are upper case   : B = Brick 
 //                           G = Grass
@@ -28,4 +28,4 @@ DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD..DDDDDDDDDDDD
 //                           # = Castle 
 //                           | = Pole
 //                           < = Flag
-// entities are lower case : p = PringleMan; g = Goomba; k = Koopa
+// entities are lower case : p = PringleMan; g = Goomba;

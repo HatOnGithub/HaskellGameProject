@@ -30,7 +30,7 @@ mario pos = Player {
   , velocity      = (0,0)
   , animations    = Map.empty
   , movementState = Standing
-  , powerUpState  = Fire
+  , powerUpState  = Small
   , boundingBoxS  = (0.9,1)
   , starMan       = False
   , starManTimer  = 0
@@ -120,9 +120,8 @@ flag pos = basicBlock { bname = "Flag", bposition = pos + (0.35, 0), bCollision 
 
 basicPickupObject :: PickupObject
 basicPickupObject = PickupObject {
-    poname          = ""
-  , poposition      = (0,0)
-  , povelocity      = (randomSignForFloat (mvmntVelocity * 1.1), 0)
+    poposition      = (0,0)
+  , povelocity      = (mvmntVelocity * 1.1, 0)
   , pickupType      = Coin
   , poanimations    = Map.empty
   , poboundingBoxS  = (1,1)
@@ -134,24 +133,21 @@ basicPickupObject = PickupObject {
 
 mushroom :: Point -> PickupObject
 mushroom pos = basicPickupObject {
-    poname      = "Mushroom"
-  , poposition  = pos
+    poposition  = pos
   , pogravity   = True
   , pickupType  = Mushroom
 }
 
 fireFlower :: Point -> PickupObject
 fireFlower pos = basicPickupObject {
-    poname      = "FireFlower"
-  , poposition  = pos
+    poposition  = pos
   , pogravity   = True
   , pickupType  = FireFlower
 }
 
 star :: Point -> PickupObject
 star pos = basicPickupObject {
-    poname      = "Star"
-  , poposition  = pos
+    poposition  = pos
   , pogravity   = True
   , bouncy      = True
   , pickupType  = Star
