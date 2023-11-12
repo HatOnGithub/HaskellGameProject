@@ -71,6 +71,8 @@ parseChar world w h c = case c of
     'g' -> world {enemies = goomba pos : enemies world}
     'k' -> world {enemies = koopa  pos : enemies world}
 
+    -- coins
+    'c' -> world {pickupObjects = coin pos : pickupObjects world}
     _ -> world
 
     where pos = (fromIntegral w , fromIntegral h )

@@ -131,6 +131,12 @@ basicPickupObject = PickupObject {
   , bouncy          = False
 }
 
+coin :: Point -> PickupObject
+coin pos = basicPickupObject{
+    poposition = pos
+  , povelocity = (0,0)
+}
+
 mushroom :: Point -> PickupObject
 mushroom pos = basicPickupObject {
     poposition  = pos

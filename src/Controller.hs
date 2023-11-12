@@ -188,7 +188,7 @@ playerCollision bTree eTree pTree w@( World { player, enemies, pickupObjects, bl
     ,   blocks  = map fst blockPopPairs
     ,   enemies = nEnems
     ,   pickupObjects = killPickups pickupObjects pickups ++ newPOs
-    ,   points  = points + (length (filter (isCoin . snd ) pops) * 200)
+    ,   points  = points + (length (filter (isCoin . snd ) pops) * 200) + (length (filter (\po -> pickupType po == Coin) pickups) * 200)
     ,   gameState = checkWinConditions
     }
     where   wcP             = worldCollision bTree player
@@ -263,6 +263,7 @@ applyPickupEffect :: Player -> PickupObject -> Player
 applyPickupEffect p po | pickupType po == Mushroom   = sizeUp p
                        | pickupType po == FireFlower = p {powerUpState = Fire}
                        | pickupType po == Star       = p {starMan = True, starManTimer = 20}
+                       | otherwise                   = p
 
 sizeUp :: Player -> Player
 sizeUp p@(Player {powerUpState = s}) | s == Small = p {powerUpState = Large}
@@ -316,7 +317,7 @@ poCollision bTree w@( World { player, enemies, pickupObjects, blocks, points, wo
 }
 
 poBounce :: QuadTree Block -> PickupObject -> PickupObject
-poBounce bTree po   | not (null collideBlocks) = setVel po (getVel po * (-1, 1) )
+poBounce bTree po   | not (null collideBlocks) && bouncy po = setVel po (jumpVelocity * 0.5, snd (getVel po) )
                     | otherwise = po
     where
         (vX, _) = getVel po
